@@ -1,0 +1,192 @@
+<x-app-layout>
+
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800">
+            Novo usuário
+        </h2>
+    </x-slot>
+
+    <div class="py-6">
+
+        <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
+
+            <div class="bg-white shadow-sm sm:rounded-lg p-6">
+
+                <form
+                    method="POST"
+                    action="{{ route('admin.users.store') }}"
+                >
+
+                    @csrf
+
+                    <div class="mb-4">
+                        <label class="block font-medium mb-1">
+                            Nome
+                        </label>
+
+                        <input
+                            type="text"
+                            name="name"
+                            value="{{ old('name') }}"
+                            class="w-full border-gray-300 rounded"
+                            required
+                        >
+
+                        @error('name')
+                            <p class="text-red-600 text-sm mt-1">
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block font-medium mb-1">
+                            E-mail
+                        </label>
+
+                        <input
+                            type="email"
+                            name="email"
+                            value="{{ old('email') }}"
+                            class="w-full border-gray-300 rounded"
+                            required
+                        >
+
+                        @error('email')
+                            <p class="text-red-600 text-sm mt-1">
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block font-medium mb-1">
+                            Senha
+                        </label>
+
+                        <input
+                            type="password"
+                            name="password"
+                            class="w-full border-gray-300 rounded"
+                            required
+                        >
+
+                        @error('password')
+                            <p class="text-red-600 text-sm mt-1">
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block font-medium mb-1">
+                            Confirmar senha
+                        </label>
+
+                        <input
+                            type="password"
+                            name="password_confirmation"
+                            class="w-full border-gray-300 rounded"
+                            required
+                        >
+                    </div>
+
+                    <div class="mb-4">
+
+                        <label class="block font-medium mb-1">
+                            Role
+                        </label>
+
+                        <select
+                            name="role_id"
+                            class="w-full border-gray-300 rounded"
+                            required
+                        >
+                            <option value="">
+                                Selecione
+                            </option>
+
+                            @foreach($roles as $role)
+
+                                <option
+                                    value="{{ $role->id }}"
+                                    @selected(old('role_id') == $role->id)
+                                >
+                                    {{ ucfirst($role->name) }}
+                                </option>
+
+                            @endforeach
+
+                        </select>
+
+                        @error('role_id')
+                            <p class="text-red-600 text-sm mt-1">
+                                {{ $message }}
+                            </p>
+                        @enderror
+
+                    </div>
+
+                    <div class="mb-6">
+
+                        <label class="block font-medium mb-1">
+                            Área
+                        </label>
+
+                        <select
+                            name="area_id"
+                            class="w-full border-gray-300 rounded"
+                            required
+                        >
+                            <option value="">
+                                Selecione
+                            </option>
+
+                            @foreach($areas as $area)
+
+                                <option
+                                    value="{{ $area->id }}"
+                                    @selected(old('area_id') == $area->id)
+                                >
+                                    {{ $area->name }}
+                                </option>
+
+                            @endforeach
+
+                        </select>
+
+                        @error('area_id')
+                            <p class="text-red-600 text-sm mt-1">
+                                {{ $message }}
+                            </p>
+                        @enderror
+
+                    </div>
+
+                    <div class="flex gap-3">
+
+                        <a
+                            href="{{ route('admin.users.index') }}"
+                            class="px-4 py-2 bg-gray-200 rounded"
+                        >
+                            Cancelar
+                        </a>
+
+                        <button
+                            type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded"
+                        >
+                            Criar usuário
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</x-app-layout>

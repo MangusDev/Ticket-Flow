@@ -3,52 +3,120 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Models\Area;
+use App\Models\Role;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
+use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    public function index()
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(): View
     {
-        $users = User::with('roles')->paginate(10);
+        $users = User::with(['role', 'area'])
+            ->orderBy('name')
+            ->paginate(15);
+
         return view('admin.users.index', compact('users'));
     }
 
-    public function create()
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create(): View
     {
-        $roles = Role::all();
-        return view('admin.users.index', compact('roles'));
+        $roles = Role::orderBy('name')->get();
+        $areas = Area::orderBy('name')->get();
+
+        return view('admin.users.create', compact('roles', 'areas'));
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request): RedirectResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
-            'role' => 'required|exists:roles,name',
+            'email' => 'required|string|email|max:255|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+            'role_id' => 'required|exists:roles,id',
+            'area_id' => 'required|exists:areas,id',
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+        User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'role_id' => $validated['role_id'],
+            'area_id' => $validated['area_id'],
         ]);
 
-        $user->assignRole($request->role);
-
-        return redirect()->route('admin.users.index')
-                        ->with('success', 'Usuario criado com sucesso!');
+        return redirect()->route('admin.users.index')->with('success', 'Usuário criado com sucesso.');
     }
 
-    public function UpdateRole(Request $request, User $user)
+    /**
+     * Display the specified resource.
+     */
+    public function show(string $id)
     {
-        $request->validate([
-            'role' => 'required|exists:roles,name',
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(User $user): View
+    {
+        $roles = Role::orderBy('name')->get();
+        $areas = Area::orderBy('name')->get();
+
+        return view('admin.users.edit', compact('roles', 'areas', 'user'));
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                'unique:users,email,' . $user->id
+            ],
+            'password' => 'nullable|string|min:8|confirmed',
+            'role_id' => 'required|exists:roles,id',
+            'area_id' => 'required|exists:areas,id',
         ]);
-        $user->syncRoles([$request->role]);
-        return back()->with('success', 'Funcao do usuario atualizada!');
+
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+        $user->role_id = $validated['role_id'];
+        $user->area_id = $validated['area_id'];
+        
+        if (!empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
+        }
+        $user->role_id = $validated['role_id'];
+        $user->area_id = $validated['area_id'];
+        $user->save();
+
+        return redirect()->route('admin.users.index')->with('success', 'Usuário atualizado com sucesso.');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy()
+    {
+        //
     }
 }
