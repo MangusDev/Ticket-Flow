@@ -49,13 +49,7 @@ class UserController extends Controller
             'area_id' => 'required|exists:areas,id',
         ]);
 
-        User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role_id' => $validated['role_id'],
-            'area_id' => $validated['area_id'],
-        ]);
+        User::create($validated);
 
         return redirect()->route('admin.users.index')->with('success', 'Usuário criado com sucesso.');
     }
