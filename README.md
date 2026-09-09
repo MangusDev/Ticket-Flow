@@ -1,59 +1,171 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Ticket-Flow
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistema interno de gestão de chamados OPEN-SOURCE com Laravel, Blade, Tailwind CSS e Alpine.js.
 
-## About Laravel
+## Visão geral
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+O Ticket-Flow organiza solicitações de suporte por área, operador, prioridade e status. O sistema possui três perfis:
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Admin**: gerencia usuários e áreas e tem acesso administrativo.
+- **Operador**: acompanha tickets da sua área, visualiza tickets atribuídos, responde, altera status e atribui operadores.
+- **Solicitante**: cria tickets, acompanha os próprios chamados e atualiza título, descrição, área e prioridade.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Tickets usam os status `open`, `in_progress` e `closed`, e as prioridades `low`, `medium` e `high`.
 
-## Learning Laravel
+## Requisitos
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+- PHP 8.2+
+- Composer
+- Node.js e npm
+- SQLite para desenvolvimento local, ou outro banco suportado pelo Laravel
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Instalação
 
-## Laravel Sponsors
+```bash
+composer setup
+php artisan db:seed
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+`composer setup` instala dependências, cria o `.env`, gera a chave, executa migrations, instala pacotes npm e compila os assets. A seed é executada separadamente para evitar dados de desenvolvimento em ambientes indevidos.
 
-### Premium Partners
+## Desenvolvimento
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Para iniciar servidor Laravel, listener de filas e Vite em paralelo:
 
-## Contributing
+```bash
+composer dev
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Ou execute os processos separadamente:
 
-## Code of Conduct
+```bash
+php artisan serve
+php artisan queue:work
+npm run dev
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+A aplicação ficará disponível, por padrão, em `http://127.0.0.1:8000`.
 
-## Security Vulnerabilities
+## Dados de desenvolvimento
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+O seeder cria as áreas e papéis necessários e também o usuário administrativo:
 
-## License
+- E-mail: `admin@admin.com`
+- Senha: `admin`
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Essas credenciais são somente para desenvolvimento local. Não as use em produção.
+
+Usuários operadores e solicitantes podem ser criados pelo painel administrativo depois do login como admin.
+
+## Fluxos principais
+
+### Solicitante
+
+- É redirecionado para `solicitante.dashboard`.
+- Cria tickets em `tickets.create`.
+- Acessa somente os próprios tickets.
+- Pode editar título, descrição, área e prioridade.
+
+### Operador
+
+- É redirecionado para `operador.dashboard`.
+- Visualiza tickets da própria área.
+- Usa `tickets.index?assigned=1` para ver somente tickets atribuídos a si.
+- Pode criar tickets, responder, mudar status e atribuir outro operador na edição.
+
+### Admin
+
+- É redirecionado para `admin.dashboard`.
+- Gerencia usuários em `admin.users.*`.
+- Gerencia áreas em `admin.areas.*`.
+- A autorização administrativa usa o middleware `admin`.
+
+## Auditoria e notificações
+
+Alterações de status ou respostas de operadores são registradas em `ticket_audits` com:
+
+- usuário responsável;
+- status anterior;
+- novo status;
+- comentário;
+- data e hora.
+
+O solicitante recebe uma notificação pelos canais de banco de dados e e-mail. O e-mail é enfileirado; mantenha um worker ativo com:
+
+```bash
+php artisan queue:work
+```
+
+Em desenvolvimento, o mailer padrão é `log`. Para envio real, configure `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` e `MAIL_FROM_ADDRESS` no `.env`.
+
+## Frontend e componentes
+
+O layout autenticado usa uma sidebar fixa responsiva em [resources/views/layouts/app.blade.php](resources/views/layouts/app.blade.php). Os componentes reutilizáveis ficam em [resources/views/components](resources/views/components):
+
+- `x-button`
+- `x-badge`
+- `x-card`
+- `x-data-table`
+- `x-toast`
+- `x-skeleton`
+- `x-input-label`
+- `x-text-input`
+- `x-input-error`
+
+Tokens de cor, tipografia, sombras e bordas estão em [tailwind.config.js](tailwind.config.js). Ao alterar Blade, CSS ou JavaScript, compile os assets:
+
+```bash
+npm run build
+```
+
+## Testes
+
+Execute toda a suíte:
+
+```bash
+composer test
+```
+
+Ou:
+
+```bash
+php artisan test
+php artisan test --filter="nome do teste"
+```
+
+Os testes de feature usam SQLite em memória e `RefreshDatabase`. As áreas de maior risco cobertas atualmente incluem autorização de tickets, atribuição de operadores, auditoria, notificações, dashboards por papel e CRUD de áreas.
+
+## Banco de dados
+
+O banco local padrão é SQLite. Depois de alterar o schema:
+
+```bash
+php artisan migrate
+```
+
+Para aplicar migrations sem prompt em um ambiente controlado:
+
+```bash
+php artisan migrate --force
+```
+
+As migrations principais cobrem usuários, papéis, áreas, tickets, auditoria de tickets e notificações.
+
+## Estrutura relevante
+
+- [app/Models](app/Models): entidades Eloquent.
+- [app/Policies/TicketPolicy.php](app/Policies/TicketPolicy.php): autorização de tickets.
+- [app/Notifications](app/Notifications): notificações de atualização.
+- [app/Http/Controllers](app/Http/Controllers): comportamento HTTP.
+- [resources/views/layouts](resources/views/layouts): layouts compartilhados.
+- [resources/views/components](resources/views/components): componentes Blade.
+- [resources/views/tickets](resources/views/tickets): criação, listagem e edição de tickets.
+- [routes/web.php](routes/web.php): rotas de aplicação e dashboards.
+- [database/seeders](database/seeders): dados iniciais locais.
+
+## Referências
+
+- [Documentação oficial do Laravel](https://laravel.com/docs)
+- [Documentação do Blade](https://laravel.com/docs/blade)
+- [Documentação do Tailwind CSS](https://tailwindcss.com/docs)
+- [Documentação do Alpine.js](https://alpinejs.dev/start-here)

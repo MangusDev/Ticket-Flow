@@ -16,7 +16,9 @@ class AreaController extends Controller
      */
     public function index(): View
     {
-        $areas = Area::orderBy('name')->paginate(15);
+        $areas = Area::withCount(['users', 'tickets'])
+            ->orderBy('name')
+            ->paginate(15);
 
         return view('admin.areas.index', compact('areas'));
     }
@@ -46,39 +48,46 @@ class AreaController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Area $Area)
+    public function show(Area $area)
     {
-        
+        abort(404);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Area $Area): View
+    public function edit(Area $area): View
     {
-        return view('admin.areas.edit', compact('Area'));
+        return view('admin.areas.edit', compact('area'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Area $Area): RedirectResponse
+    public function update(Request $request, Area $area): RedirectResponse
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:areas,name,' . $Area->id,
+            'name' => 'required|string|max:255|unique:areas,name,' . $area->id,
         ]);
 
-        $Area->update($validated);
+        $area->update($validated);
 
-        return redirect()->route('areas.index')->with('success', 'Área atualizada com sucesso.');
+        return redirect()->route('admin.areas.index')->with('success', 'Área atualizada com sucesso.');
     }
 
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Area $Area)
+    public function destroy(Area $area): RedirectResponse
     {
-        
+        if ($area->users()->exists() || $area->tickets()->exists()) {
+            return redirect()->route('admin.areas.index')
+                ->with('error', 'Não é possível excluir uma área vinculada a usuários ou tickets.');
+        }
+
+        $area->delete();
+
+        return redirect()->route('admin.areas.index')->with('success', 'Área excluída com sucesso.');
     }
 }

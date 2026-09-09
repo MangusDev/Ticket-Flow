@@ -14,6 +14,7 @@ class Ticket extends Model
 
     protected $fillable = [
         'user_id',
+        'operator_id',
         'area_id',
         'title',
         'description',
@@ -37,6 +38,11 @@ class Ticket extends Model
     public function area ()
     {
         return $this->belongsTo(Area::class);
+    }
+
+    public function audits(): HasMany
+    {
+        return $this->hasMany(TicketAudit::class)->latest();
     }
     
 

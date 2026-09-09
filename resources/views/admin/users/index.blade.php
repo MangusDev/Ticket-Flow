@@ -1,97 +1,25 @@
 <x-app-layout>
-
     <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-gray-800">
-                Usuários
-            </h2>
-
-            <a
-                href="{{ route('admin.users.create') }}"
-                class="bg-blue-600 text-white px-4 py-2 rounded"
-            >
-                Novo usuário
-            </a>
+        <div class="flex items-center justify-between gap-4">
+            <div><p class="text-xs font-semibold uppercase tracking-wide text-ink-500">Administração</p><h2 class="mt-1 text-xl font-semibold text-ink-950">Usuários</h2></div>
+            <x-button tag="a" href="{{ route('admin.users.create') }}">Novo usuário</x-button>
         </div>
     </x-slot>
 
-    <div class="py-6">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-
-            @if(session('success'))
-                <div class="bg-green-100 text-green-800 p-4 rounded mb-4">
-                    {{ session('success') }}
-                </div>
-            @endif
-
-            <div class="bg-white shadow-sm sm:rounded-lg overflow-hidden">
-
-                <table class="w-full">
-
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="text-left p-4">Nome</th>
-                            <th class="text-left p-4">E-mail</th>
-                            <th class="text-left p-4">Role</th>
-                            <th class="text-left p-4">Área</th>
-                            <th class="text-left p-4">Ações</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-
-                        @forelse($users as $user)
-
-                            <tr class="border-t">
-
-                                <td class="p-4">
-                                    {{ $user->name }}
-                                </td>
-
-                                <td class="p-4">
-                                    {{ $user->email }}
-                                </td>
-
-                                <td class="p-4">
-                                    {{ $user->role->name ?? '-' }}
-                                </td>
-
-                                <td class="p-4">
-                                    {{ $user->area->name ?? '-' }}
-                                </td>
-
-                                <td class="p-4">
-                                    <a
-                                        href="{{ route('admin.users.edit', $user) }}"
-                                        class="text-blue-600"
-                                    >
-                                        Editar
-                                    </a>
-                                </td>
-
-                            </tr>
-
-                        @empty
-
-                            <tr>
-                                <td colspan="5" class="p-4 text-center">
-                                    Nenhum usuário encontrado.
-                                </td>
-                            </tr>
-
-                        @endforelse
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-            <div class="mt-4">
-                {{ $users->links() }}
-            </div>
-
-        </div>
-    </div>
-
+    <div class="bg-ink-50 py-8"><div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <x-data-table :headers="['Nome', 'E-mail', 'Perfil', 'Área', 'Ações']">
+            @forelse ($users as $user)
+                <tr class="transition-colors hover:bg-ink-50">
+                    <td class="px-5 py-4 font-semibold text-ink-900">{{ $user->name }}</td>
+                    <td class="px-5 py-4 text-ink-700">{{ $user->email }}</td>
+                    <td class="px-5 py-4"><x-badge :tone="$user->role?->name === 'admin' ? 'info' : 'neutral'">{{ $user->role->name ?? '-' }}</x-badge></td>
+                    <td class="px-5 py-4 text-ink-700">{{ $user->area->name ?? '-' }}</td>
+                    <td class="px-5 py-4"><a href="{{ route('admin.users.edit', $user) }}" class="font-semibold text-brand-600 hover:text-brand-700">Editar</a></td>
+                </tr>
+            @empty
+                <tr><td colspan="5" class="px-5 py-12 text-center"><p class="font-semibold text-ink-700">Nenhum usuário encontrado</p><p class="mt-1 text-sm text-ink-500">Cadastre um usuário para começar.</p></td></tr>
+            @endforelse
+        </x-data-table>
+        <div class="mt-4">{{ $users->links() }}</div>
+    </div></div>
 </x-app-layout>

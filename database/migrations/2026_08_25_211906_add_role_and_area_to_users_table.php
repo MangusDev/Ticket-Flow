@@ -11,10 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->foreignId('role_id')->nullable()->constrained('roles')->onDelete('set null');
-            $table->foreignId('area_id')->nullable()->constrained('areas')->onDelete('set null');
-        });
+        if (! Schema::hasColumn('users', 'role_id')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->foreignId('role_id')->nullable()->constrained('roles')->onDelete('set null');
+            });
+        }
+
+        if (! Schema::hasColumn('users', 'area_id')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->foreignId('area_id')->nullable()->constrained('areas')->onDelete('set null');
+            });
+        }
     }
 
     /**
@@ -23,9 +30,13 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropForeign(['role_id']);
-            $table->dropForeign(['area_id']);
-            $table->dropColumn(['role_id', 'area_id']);
+            if (Schema::hasColumn('users', 'role_id')) {
+                $table->dropConstrainedForeignId('role_id');
+            }
+
+            if (Schema::hasColumn('users', 'area_id')) {
+                $table->dropConstrainedForeignId('area_id');
+            }
         });
     }
 };

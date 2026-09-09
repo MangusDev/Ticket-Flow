@@ -56,12 +56,12 @@ class User extends Authenticatable
         return $this->belongsTo(Area::class);
     }
 
-    public function requestedTickets(): HasMany
+    public function requester(): HasMany
     {
         return $this->hasMany(Ticket::class, 'user_id');
     }
 
-    public function operatedTickets(): HasMany
+    public function operator(): HasMany
     {
         return $this->hasMany(Ticket::class, 'operator_id');
     }

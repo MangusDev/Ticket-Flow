@@ -1,30 +1,67 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\TicketController;
+use App\Models\Ticket;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 
-
-//mudar esta rota depois
 Route::get('/', function () {
-    return redirect()->route('admin.dashboard');
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+
+    return redirect()->route('login');
 });
 
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', function (Request $request) {
+        $user = $request->user();
 
-//Rotas admin 
-Route::middleware('auth')->group(function(){
-    Route::get('/admin.dashboard', function () {
-        return view('admin.dashboard');
-    })->name('/admin.dashboard');
+        if ($user->role?->name === 'admin') {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($user->role?->name === 'operador') {
+            return redirect()->route('operador.dashboard');
+        }
+
+        return redirect()->route('solicitante.dashboard');
+    })->name('dashboard');
+
+    Route::get('/operador/dashboard', function (Request $request) {
+        $user = $request->user();
+        $assignedTicketsCount = Ticket::where('operator_id', $user->id)->count();
+        $areaTicketsCount = Ticket::where('area_id', $user->area_id)->count();
+
+        return view('operador.dashboard', compact('assignedTicketsCount', 'areaTicketsCount'));
+    })->middleware('role:operador')->name('operador.dashboard');
+
+    Route::get('/solicitante/dashboard', function (Request $request) {
+        $tickets = Ticket::where('user_id', $request->user()->id)
+            ->latest()
+            ->get();
+
+        return view('dashboard', [
+            'metrics' => [
+                'total' => $tickets->count(),
+                'open' => $tickets->where('status', 'open')->count(),
+                'in_progress' => $tickets->where('status', 'in_progress')->count(),
+                'closed' => $tickets->where('status', 'closed')->count(),
+            ],
+            'recentTickets' => $tickets->take(3),
+        ]);
+    })->middleware('role:solicitante')->name('solicitante.dashboard');
+
+    Route::resource('tickets', TicketController::class);
 });
 
-//Middleware para rotas de admin, Route::resource para rotas de CRUD do users 
 Route::middleware(['auth', 'admin'])
     ->prefix('admin')
     ->name('admin.')
-    ->group(function(){
-        Route::get('/', function () {
+    ->group(function () {
+        Route::get('/dashboard', function () {
             return view('admin.dashboard');
-        })->name('/admin.dashboard');
+        })->name('dashboard');
 
         Route::resource('users', \App\Http\Controllers\Admin\UserController::class)
             ->except(['show']);
@@ -32,8 +69,5 @@ Route::middleware(['auth', 'admin'])
         Route::resource('areas', \App\Http\Controllers\Admin\AreaController::class)
             ->except(['show']);
     });
-
-
-
 
 require __DIR__.'/auth.php';
