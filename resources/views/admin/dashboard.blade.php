@@ -20,6 +20,12 @@
                 >
                     Gerenciar usuários
                 </a>
+                <a
+                    href="{{ route('admin.areas.index') }}"
+                    class="inline-block bg-blue-600 text-white px-4 py-2 rounded"
+                >
+                    Gerenciar Áreas
+                </a>
 
             </div>
 

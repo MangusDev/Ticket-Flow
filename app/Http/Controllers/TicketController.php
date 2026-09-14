@@ -50,7 +50,7 @@ class TicketController extends Controller
      */
     public function create(): View
     {
-        $areas = Area::orderBy('name')->get();
+        $areas = Area::where('is_active', true)->orderBy('name')->get();
 
         Gate::authorize('create', Ticket::class);
 
@@ -63,9 +63,10 @@ class TicketController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $user = $request->user();
+        Gate::authorize('create', Ticket::class);
 
         $data = $request->validate([
-            'area_id' => 'required|exists:areas,id',
+            'area_id' => ['required', Rule::exists('areas', 'id')->where(fn ($query) => $query->where('is_active', true))],
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'status' => 'required|string|in:open,closed,in_progress',
@@ -95,7 +96,7 @@ class TicketController extends Controller
     public function edit(Ticket $ticket): View
     {
         Gate::authorize('update', $ticket);
-        $areas = Area::orderBy('name')->get();
+        $areas = Area::where('is_active', true)->orderBy('name')->get();
         $operatorRoleId = Role::where('name', 'operador')->value('id');
         $operators = User::when($operatorRoleId, function ($query) use ($operatorRoleId) {
             $query->where('role_id', $operatorRoleId);
@@ -112,43 +113,63 @@ class TicketController extends Controller
      */
     public function update(Request $request, Ticket $ticket): RedirectResponse
     {
-        Gate::authorize('update', $ticket);
+        $user = $request->user();
+        $isOperator = $user->role?->name === 'operador';
 
-        $validated = $request->validate([
-            'area_id' => 'required|exists:areas,id',
-            'title' => 'required|string|max:255',
-            'description' => 'required|string',
-            'status' => 'required|string|in:open,closed,in_progress',
-            'priority' => 'required|string|in:low,medium,high',
-            'operator_id' => [
-                'nullable',
-                Rule::exists('users', 'id')->where(function ($query) {
-                    $query->whereIn('role_id', Role::where('name', 'operador')->pluck('id'));
-                }),
-            ],
-            'comment' => 'nullable|string|max:5000',
-        ]);
+        if ($isOperator) {
+            Gate::authorize('update', $ticket);
 
-        $canAssign = Gate::allows('assign', $ticket);
-        if (!$canAssign) {
-            unset($validated['operator_id']);
+            $validated = $request->validate([
+                'area_id' => 'required|exists:areas,id',
+                'status' => 'required|string|in:open,closed,in_progress',
+                'priority' => 'required|string|in:low,medium,high',
+                'operator_id' => [
+                    'nullable',
+                    Rule::exists('users', 'id')->where(function ($query) {
+                        $query->whereIn('role_id', Role::where('name', 'operador')->pluck('id'));
+                    }),
+                ],
+                'comment' => 'nullable|string|max:5000',
+            ]);
+
+            $validated['title'] = $ticket->title;
+            $validated['description'] = $ticket->description;
+        } else {
+            Gate::authorize('respond', $ticket);
+
+            if ($request->hasAny(['area_id', 'title', 'description', 'status', 'priority', 'operator_id'])) {
+                abort(403, 'Solicitante só pode responder ao ticket.');
+            }
+
+            $validated = $request->validate([
+                'comment' => 'nullable|string|max:5000',
+            ]);
         }
 
         $comment = trim((string) ($validated['comment'] ?? '')) ?: null;
         unset($validated['comment']);
-        $previousStatus = $ticket->status;
-        $statusChanged = $previousStatus !== $validated['status'];
 
-        if ($comment !== null) {
-            Gate::authorize('respond', $ticket);
+        if ($isOperator) {
+            $canAssign = Gate::allows('assign', $ticket);
+            if (!$canAssign) {
+                unset($validated['operator_id']);
+            }
+
+            $previousStatus = $ticket->status;
+            $statusChanged = $previousStatus !== $validated['status'];
+
+            if ($statusChanged) {
+                Gate::authorize('changeStatus', $ticket);
+            }
+        } else {
+            $previousStatus = $ticket->status;
+            $statusChanged = false;
         }
 
-        if ($statusChanged) {
-            Gate::authorize('changeStatus', $ticket);
-        }
-
-        DB::transaction(function () use ($ticket, $validated, $comment, $previousStatus, $statusChanged, $request): void {
-            $ticket->update($validated);
+        DB::transaction(function () use ($ticket, $validated, $comment, $previousStatus, $statusChanged, $request, $isOperator): void {
+            if ($isOperator) {
+                $ticket->update($validated);
+            }
 
             if ($statusChanged || $comment !== null) {
                 TicketAudit::create([
@@ -159,7 +180,26 @@ class TicketController extends Controller
                     'comment' => $comment,
                 ]);
 
-                $ticket->requester->notify(new TicketUpdatedNotification($ticket, $comment, $statusChanged));
+                $notification = new TicketUpdatedNotification($ticket, $comment, $statusChanged);
+
+                if ($isOperator) {
+                    $ticket->requester->notify($notification);
+                } else {
+                    $operatorRoleId = Role::where('name', 'operador')->value('id');
+                    $notifiableUsers = User::query()
+                        ->when($operatorRoleId, fn ($query) => $query->where('role_id', $operatorRoleId))
+                        ->where('area_id', $ticket->area_id)
+                        ->get();
+
+                    if ($ticket->operator_id) {
+                        $notifiableUsers->push($ticket->operator);
+                    }
+
+                    $notifiableUsers = $notifiableUsers->filter()->unique('id');
+                    foreach ($notifiableUsers as $notifiableUser) {
+                        $notifiableUser->notify($notification);
+                    }
+                }
             }
         });
 

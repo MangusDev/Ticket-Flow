@@ -3,6 +3,7 @@
 use App\Models\Area;
 use App\Models\Role;
 use App\Models\Ticket;
+use App\Models\TicketAudit;
 use App\Models\User;
 
 function requesterViewUser(): array
@@ -46,7 +47,38 @@ test('requester can create a ticket from the creation view', function () {
         ->and($ticket->title)->toBe('Não consigo acessar o sistema');
 });
 
-test('requester can render their ticket editing view', function () {
+test('requester can render their ticket detail history view', function () {
+    [$user, $area] = requesterViewUser();
+    $operatorRole = Role::create(['name' => 'operador']);
+    $operator = User::factory()->create(['role_id' => $operatorRole->id, 'area_id' => $area->id]);
+    $ticket = Ticket::create([
+        'user_id' => $user->id,
+        'operator_id' => $operator->id,
+        'area_id' => $area->id,
+        'title' => 'Título original',
+        'description' => 'Descrição original',
+        'status' => 'open',
+        'priority' => 'low',
+    ]);
+
+    TicketAudit::create([
+        'ticket_id' => $ticket->id,
+        'user_id' => $operator->id,
+        'previous_status' => 'open',
+        'new_status' => 'in_progress',
+        'comment' => 'Estamos analisando seu caso.',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('tickets.show', $ticket))
+        ->assertOk()
+        ->assertSee('Título original')
+        ->assertSee('Descrição original')
+        ->assertSee('Estamos analisando seu caso.')
+        ->assertSee('Operador responsável');
+});
+
+test('requester cannot access the operator editing view', function () {
     [$user, $area] = requesterViewUser();
     $ticket = Ticket::create([
         'user_id' => $user->id,
@@ -59,32 +91,5 @@ test('requester can render their ticket editing view', function () {
 
     $this->actingAs($user)
         ->get(route('tickets.edit', $ticket))
-        ->assertOk()
-        ->assertSee('Editar ticket')
-        ->assertSee('Título original');
-});
-
-test('requester can update their ticket from the editing view', function () {
-    [$user, $area] = requesterViewUser();
-    $ticket = Ticket::create([
-        'user_id' => $user->id,
-        'area_id' => $area->id,
-        'title' => 'Título original',
-        'description' => 'Descrição original',
-        'status' => 'open',
-        'priority' => 'low',
-    ]);
-
-    $this->actingAs($user)
-        ->put(route('tickets.update', $ticket), [
-            'area_id' => $area->id,
-            'title' => 'Título atualizado',
-            'description' => 'Descrição atualizada',
-            'status' => 'open',
-            'priority' => 'medium',
-        ])
-        ->assertRedirectToRoute('tickets.index');
-
-    expect($ticket->fresh()->title)->toBe('Título atualizado')
-        ->and($ticket->fresh()->priority)->toBe('medium');
+        ->assertForbidden();
 });

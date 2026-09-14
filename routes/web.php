@@ -68,6 +68,8 @@ Route::middleware(['auth', 'admin'])
 
         Route::resource('areas', \App\Http\Controllers\Admin\AreaController::class)
             ->except(['show']);
+        Route::patch('areas/{area}/toggle', [\App\Http\Controllers\Admin\AreaController::class, 'toggle'])
+            ->name('areas.toggle');
     });
 
 require __DIR__.'/auth.php';

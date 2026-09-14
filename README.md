@@ -6,7 +6,7 @@ Sistema interno de gestão de chamados OPEN-SOURCE com Laravel, Blade, Tailwind 
 
 O Ticket-Flow organiza solicitações de suporte por área, operador, prioridade e status. O sistema possui três perfis:
 
-- **Admin**: gerencia usuários e áreas e tem acesso administrativo.
+- **Admin**: gerencia usuários e áreas e tem acesso administrativo, gera relatorios.
 - **Operador**: acompanha tickets da sua área, visualiza tickets atribuídos, responde, altera status e atribui operadores.
 - **Solicitante**: cria tickets, acompanha os próprios chamados e atualiza título, descrição, área e prioridade.
 

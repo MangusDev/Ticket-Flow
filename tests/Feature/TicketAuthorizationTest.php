@@ -41,7 +41,7 @@ test('requesters cannot update another users ticket', function () {
     expect($ticket->fresh()->title)->toBe('Original');
 });
 
-test('requesters can update their own ticket without changing its owner', function () {
+test('requesters cannot update their own ticket', function () {
     $role = ticketRole('solicitante');
     $area = ticketArea('TI');
     $user = User::factory()->create(['role_id' => $role->id, 'area_id' => $area->id]);
@@ -63,16 +63,17 @@ test('requesters can update their own ticket without changing its owner', functi
         'priority' => 'medium',
     ]);
 
-    $response->assertRedirectToRoute('tickets.index');
+    $response->assertForbidden();
     expect($ticket->fresh()->user_id)->toBe($user->id)
-        ->and($ticket->fresh()->title)->toBe('Atualizado');
+        ->and($ticket->fresh()->title)->toBe('Original');
 });
 
-test('operators can update tickets in their area', function () {
-    $role = ticketRole('operador');
+test('admins cannot update tickets', function () {
+    $adminRole = ticketRole('admin');
+    $requesterRole = ticketRole('solicitante');
     $area = ticketArea('TI');
-    $user = User::factory()->create(['role_id' => $role->id, 'area_id' => $area->id]);
-    $requester = User::factory()->create();
+    $admin = User::factory()->create(['role_id' => $adminRole->id, 'area_id' => $area->id]);
+    $requester = User::factory()->create(['role_id' => $requesterRole->id, 'area_id' => $area->id]);
     $ticket = Ticket::create([
         'user_id' => $requester->id,
         'area_id' => $area->id,
@@ -82,14 +83,58 @@ test('operators can update tickets in their area', function () {
         'priority' => 'low',
     ]);
 
-    $response = $this->actingAs($user)->patch(route('tickets.update', $ticket), [
+    $response = $this->actingAs($admin)->patch(route('tickets.update', $ticket), [
         'area_id' => $area->id,
-        'title' => 'Atualizado pelo operador',
-        'description' => 'Descrição atualizada',
-        'status' => 'in_progress',
+        'title' => 'Tentativa admin',
+        'description' => 'Descrição admin',
+        'status' => 'closed',
         'priority' => 'high',
     ]);
 
+    $response->assertForbidden();
+    expect($ticket->fresh()->title)->toBe('Original');
+});
+
+test('admins cannot create tickets', function () {
+    $adminRole = ticketRole('admin');
+    $area = ticketArea('TI');
+    $admin = User::factory()->create(['role_id' => $adminRole->id, 'area_id' => $area->id]);
+
+    $this->actingAs($admin)
+        ->get(route('tickets.create'))
+        ->assertForbidden();
+});
+
+test('operators cannot change title or description, but can update allowed fields', function () {
+    $role = ticketRole('operador');
+    $area = ticketArea('TI');
+    $user = User::factory()->create(['role_id' => $role->id, 'area_id' => $area->id]);
+    $requester = User::factory()->create();
+    $otherOperator = User::factory()->create(['role_id' => $role->id, 'area_id' => $area->id]);
+    $ticket = Ticket::create([
+        'user_id' => $requester->id,
+        'area_id' => $area->id,
+        'title' => 'Original',
+        'description' => 'Description',
+        'status' => 'open',
+        'priority' => 'low',
+        'operator_id' => $user->id,
+    ]);
+
+    $response = $this->actingAs($user)->patch(route('tickets.update', $ticket), [
+        'area_id' => $area->id,
+        'title' => 'Titulo proibido',
+        'description' => 'Descrição proibida',
+        'status' => 'in_progress',
+        'priority' => 'high',
+        'operator_id' => $otherOperator->id,
+        'comment' => 'Resposta do operador',
+    ]);
+
     $response->assertRedirectToRoute('tickets.index');
-    expect($ticket->fresh()->status)->toBe('in_progress');
+    expect($ticket->fresh()->title)->toBe('Original')
+        ->and($ticket->fresh()->description)->toBe('Description')
+        ->and($ticket->fresh()->status)->toBe('in_progress')
+        ->and($ticket->fresh()->priority)->toBe('high')
+        ->and($ticket->fresh()->operator_id)->toBe($otherOperator->id);
 });

@@ -3,25 +3,20 @@
         <h2 class="font-semibold text-xl text-gray-800">Editar ticket</h2>
     </x-slot>
 
-    <div class="py-6">
-        <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white shadow-sm sm:rounded-lg p-6">
+    <div class="bg-ink-50 py-8">
+        <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+            <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-ink-200 sm:p-8">
                 <form method="POST" action="{{ route('tickets.update', $ticket) }}" class="space-y-5">
                     @csrf
                     @method('PUT')
                     <div>
                         <x-input-label for="title" value="Título" />
-                        <x-text-input id="title" name="title" type="text" class="mt-1 block w-full"
-                            :value="old('title', $ticket->title)" required autofocus />
-                        <x-input-error class="mt-2" :messages="$errors->get('title')" />
+                        <x-text-input id="title" name="title" type="text" class="mt-1 block w-full bg-ink-100" :value="$ticket->title" readonly />
                     </div>
 
                     <div>
                         <x-input-label for="description" value="Descrição" />
-                        <textarea id="description" name="description" rows="6"
-                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            required>{{ old('description', $ticket->description) }}</textarea>
-                        <x-input-error class="mt-2" :messages="$errors->get('description')" />
+                        <textarea id="description" name="description" rows="6" class="ui-control mt-1 block w-full bg-ink-100" readonly>{{ $ticket->description }}</textarea>
                     </div>
 
                     <div>
@@ -44,44 +39,38 @@
                         <x-input-error class="mt-2" :messages="$errors->get('priority')" />
                     </div>
 
-                    @if (in_array(Auth::user()->role?->name, ['admin', 'operador'], true))
-                        <div>
-                            <x-input-label for="operator_id" value="Operador responsável" />
-                            <select id="operator_id" name="operator_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
-                                <option value="">Sem operador atribuído</option>
-                                @foreach ($operators as $operator)
-                                    <option value="{{ $operator->id }}" @selected(old('operator_id', $ticket->operator_id) == $operator->id)>
-                                        {{ $operator->name }}{{ $operator->area ? ' · '.$operator->area->name : '' }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <x-input-error class="mt-2" :messages="$errors->get('operator_id')" />
-                        </div>
+                    <div>
+                        <x-input-label for="operator_id" value="Operador responsável" />
+                        <select id="operator_id" name="operator_id" class="ui-control mt-1 block w-full px-3 py-2" >
+                            <option value="">Sem operador atribuído</option>
+                            @foreach ($operators as $operator)
+                                <option value="{{ $operator->id }}" @selected(old('operator_id', $ticket->operator_id) == $operator->id)>
+                                    {{ $operator->name }}{{ $operator->area ? ' · '.$operator->area->name : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <x-input-error class="mt-2" :messages="$errors->get('operator_id')" />
+                    </div>
 
-                        <div>
-                            <x-input-label for="status" value="Status" />
-                            <select id="status" name="status" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
-                                @foreach (['open' => 'Aberto', 'in_progress' => 'Em andamento', 'closed' => 'Fechado'] as $value => $label)
-                                    <option value="{{ $value }}" @selected(old('status', $ticket->status) === $value)>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                            <x-input-error class="mt-2" :messages="$errors->get('status')" />
-                        </div>
+                    <div>
+                        <x-input-label for="status" value="Status" />
+                        <select id="status" name="status" class="ui-control mt-1 block w-full px-3 py-2" required>
+                            @foreach (['open' => 'Aberto', 'in_progress' => 'Em andamento', 'closed' => 'Fechado'] as $value => $label)
+                                <option value="{{ $value }}" @selected(old('status', $ticket->status) === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <x-input-error class="mt-2" :messages="$errors->get('status')" />
+                    </div>
 
-                        <div>
-                            <x-input-label for="comment" value="Resposta ou comentário" />
-                            <textarea id="comment" name="comment" rows="4"
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                                placeholder="Escreva uma resposta para o solicitante...">{{ old('comment') }}</textarea>
-                            <x-input-error class="mt-2" :messages="$errors->get('comment')" />
-                        </div>
-                    @else
-                        <input type="hidden" name="status" value="{{ $ticket->status }}">
-                    @endif
+                    <div>
+                        <x-input-label for="comment" value="Resposta ou comentário" />
+                        <textarea id="comment" name="comment" rows="4" class="ui-control mt-1 block w-full px-3 py-2" placeholder="Escreva uma resposta para o solicitante...">{{ old('comment') }}</textarea>
+                        <x-input-error class="mt-2" :messages="$errors->get('comment')" />
+                    </div>
 
-                    <div class="flex gap-3">
-                        <a href="{{ route('tickets.index') }}" class="px-4 py-2 bg-gray-200 rounded">Cancelar</a>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Salvar alterações</button>
+                    <div class="flex gap-3 border-t border-ink-200 pt-6">
+                        <a href="{{ route('tickets.index') }}" class="rounded-control px-4 py-2 text-sm font-semibold text-ink-700 transition hover:bg-ink-100">Cancelar</a>
+                        <x-button type="submit">Salvar alterações</x-button>
                     </div>
                 </form>
             </div>

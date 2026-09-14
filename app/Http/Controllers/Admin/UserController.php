@@ -107,10 +107,12 @@ class UserController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Disable the specified user instead of deleting it.
      */
-    public function destroy()
+    public function destroy(User $user): RedirectResponse
     {
-        //
+        $user->update(['is_active' => false]);
+
+        return redirect()->route('admin.users.index')->with('success', 'Usuário desativado com sucesso.');
     }
 }

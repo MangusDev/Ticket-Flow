@@ -15,6 +15,11 @@
 						<p class="text-red-600 text-sm mt-1">{{ $message }}</p>
 					@enderror
 
+					<div class="mt-4 flex items-center gap-3">
+						<input id="is_active" type="checkbox" name="is_active" value="1" checked class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+						<label for="is_active" class="text-sm font-medium text-gray-700">Área ativa</label>
+					</div>
+
 					<div class="flex gap-3 mt-6">
 						<a href="{{ route('admin.areas.index') }}" class="px-4 py-2 bg-gray-200 rounded">Cancelar</a>
 						<button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Criar área</button>

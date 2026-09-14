@@ -28,7 +28,6 @@
                     <p class="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Navegação</p>
                     <a href="{{ route('dashboard') }}" class="flex items-center gap-3 rounded-control px-3 py-2.5 text-sm font-medium transition hover:bg-white/10 hover:text-white {{ request()->routeIs('dashboard', 'admin.dashboard', 'operador.dashboard', 'solicitante.dashboard') ? 'bg-brand-600 text-white' : '' }}"><span class="w-5 text-center">▦</span>Dashboard</a>
                     <a href="{{ route('tickets.index') }}" class="flex items-center gap-3 rounded-control px-3 py-2.5 text-sm font-medium transition hover:bg-white/10 hover:text-white {{ request()->routeIs('tickets.index', 'tickets.show', 'tickets.edit') ? 'bg-white/10 text-white' : '' }}"><span class="w-5 text-center">▤</span>Meus Tickets</a>
-                    <a href="{{ route('tickets.create') }}" class="mt-2 flex items-center gap-3 rounded-control px-3 py-2.5 text-sm font-medium transition hover:bg-white/10 hover:text-white {{ request()->routeIs('tickets.create') ? 'bg-white/10 text-white' : '' }}"><span class="w-5 text-center text-lg">+</span>Novo Ticket</a>
                 </nav>
 
                 <div class="border-t border-white/10 p-4">

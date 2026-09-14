@@ -71,24 +71,31 @@ test('operator can add a response without changing status', function () {
         ->and(TicketAudit::first()->comment)->toBe('Recebemos sua solicitação.');
 });
 
-test('requester cannot change status or add an operator response', function () {
+test('requester can add a response and notify assigned operator and area', function () {
     [$operator, $requester, $ticket] = activityTicket();
+    $ticket->update(['operator_id' => $operator->id]);
+    $areaOperator = User::factory()->create([
+        'role_id' => Role::where('name', 'operador')->firstOrFail()->id,
+        'area_id' => $ticket->area_id,
+    ]);
     Notification::fake();
 
     $this->actingAs($requester)
         ->put(route('tickets.update', $ticket), [
-            'area_id' => $ticket->area_id,
-            'title' => $ticket->title,
-            'description' => $ticket->description,
-            'status' => 'closed',
-            'priority' => $ticket->priority,
-            'comment' => 'Tentativa indevida.',
+            'comment' => 'Recebi sua resposta e vou confirmar.',
         ])
-        ->assertForbidden();
+        ->assertRedirectToRoute('tickets.index');
 
-    expect($ticket->fresh()->status)->toBe('open')
-        ->and(TicketAudit::count())->toBe(0);
-    Notification::assertNothingSent();
+    expect(TicketAudit::first()->comment)->toBe('Recebi sua resposta e vou confirmar.')
+        ->and(TicketAudit::first()->previous_status)->toBe('open')
+        ->and(TicketAudit::first()->new_status)->toBe('open');
+
+    Notification::assertSentTo($operator, TicketUpdatedNotification::class,
+        fn (TicketUpdatedNotification $notification) => $notification->comment === 'Recebi sua resposta e vou confirmar.'
+    );
+    Notification::assertSentTo($areaOperator, TicketUpdatedNotification::class,
+        fn (TicketUpdatedNotification $notification) => $notification->comment === 'Recebi sua resposta e vou confirmar.'
+    );
 });
 
 test('operator can assign a ticket to another operator', function () {
@@ -125,7 +132,7 @@ test('requester cannot assign a ticket to an operator', function () {
             'priority' => $ticket->priority,
             'operator_id' => $operator->id,
         ])
-        ->assertRedirectToRoute('tickets.index');
+        ->assertForbidden();
 
     expect($ticket->fresh()->operator_id)->toBeNull();
 });

@@ -31,11 +31,23 @@
 					<tbody>
 						@forelse ($areas as $area)
 							<tr class="border-t">
-								<td class="p-4">{{ $area->name }}</td>
+								<td class="p-4">
+									<div class="font-medium">{{ $area->name }}</div>
+									<span class="text-xs {{ $area->is_active ? 'text-emerald-600' : 'text-red-600' }}">
+										{{ $area->is_active ? 'Ativa' : 'Inativa' }}
+									</span>
+								</td>
 								<td class="p-4">{{ $area->users_count }}</td>
 								<td class="p-4">{{ $area->tickets_count }}</td>
-								<td class="p-4 flex gap-3">
+								<td class="p-4 flex flex-wrap gap-3">
 									<a href="{{ route('admin.areas.edit', $area) }}" class="text-blue-600">Editar</a>
+									<form method="POST" action="{{ route('admin.areas.toggle', $area) }}">
+										@csrf
+										@method('PATCH')
+										<button type="submit" class="{{ $area->is_active ? 'text-amber-600' : 'text-emerald-600' }}">
+											{{ $area->is_active ? 'Desativar' : 'Ativar' }}
+										</button>
+									</form>
 									<form method="POST" action="{{ route('admin.areas.destroy', $area) }}">
 										@csrf
 										@method('DELETE')

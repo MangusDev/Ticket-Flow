@@ -38,9 +38,13 @@ class AreaController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:areas,name',
+            'is_active' => ['sometimes', 'boolean'],
         ]);
 
-        Area::create($validated);
+        Area::create([
+            'name' => $validated['name'],
+            'is_active' => $validated['is_active'] ?? true,
+        ]);
 
         return redirect()->route('admin.areas.index')->with('success', 'Área criada com sucesso.');
     }
@@ -68,13 +72,27 @@ class AreaController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:areas,name,' . $area->id,
+            'is_active' => ['sometimes', 'boolean'],
         ]);
 
-        $area->update($validated);
+        $area->update([
+            'name' => $validated['name'],
+            'is_active' => $validated['is_active'] ?? $area->is_active,
+        ]);
 
         return redirect()->route('admin.areas.index')->with('success', 'Área atualizada com sucesso.');
     }
 
+    public function toggle(Area $area): RedirectResponse
+    {
+        $area->update([
+            'is_active' => ! $area->is_active,
+        ]);
+
+        $status = $area->fresh()->is_active ? 'ativada' : 'desativada';
+
+        return redirect()->route('admin.areas.index')->with('success', "Área {$status} com sucesso.");
+    }
 
     /**
      * Remove the specified resource from storage.

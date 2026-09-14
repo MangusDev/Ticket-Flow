@@ -46,7 +46,17 @@ test('operator dashboard is rendered for operators', function () {
     $this->actingAs($user)
         ->get(route('operador.dashboard'))
         ->assertOk()
-        ->assertSee('Área do operador');
+        ->assertSee('Área do operador')
+        ->assertSee('Criar ticket');
+});
+
+test('requester dashboard shows the create ticket action', function () {
+    $user = dashboardUser('solicitante');
+
+    $this->actingAs($user)
+        ->get(route('solicitante.dashboard'))
+        ->assertOk()
+        ->assertSee('Criar ticket');
 });
 
 test('operator dashboard shows tickets from their area', function () {

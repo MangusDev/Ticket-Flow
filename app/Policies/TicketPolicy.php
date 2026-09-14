@@ -23,27 +23,31 @@ class TicketPolicy
 
     public function create(User $user): bool
     {
-        return $user->role?->name !== null;
+        return in_array($user->role?->name, ['solicitante', 'operador'], true);
     }
 
     public function update(User $user, Ticket $ticket): bool
     {
-        return $this->view($user, $ticket);
+        return $this->isOperator($user) && $this->view($user, $ticket);
     }
 
     public function respond(User $user, Ticket $ticket): bool
     {
-        return $this->isAdmin($user) || $this->isOperator($user);
+        if ($this->isOperator($user)) {
+            return true;
+        }
+
+        return $this->isRequester($user) && $ticket->user_id === $user->id;
     }
 
     public function changeStatus(User $user, Ticket $ticket): bool
     {
-        return $this->respond($user, $ticket);
+        return $this->isOperator($user);
     }
 
     public function assign(User $user, Ticket $ticket): bool
     {
-        return $this->isAdmin($user) || $this->isOperator($user);
+        return $this->isOperator($user);
     }
 
     public function delete(User $user, Ticket $ticket): bool
@@ -59,5 +63,10 @@ class TicketPolicy
     private function isOperator(User $user): bool
     {
         return $user->role?->name === 'operador';
+    }
+
+    private function isRequester(User $user): bool
+    {
+        return $user->role?->name === 'solicitante';
     }
 }
