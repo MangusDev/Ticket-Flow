@@ -1,52 +1,53 @@
 # Ticket-Flow agent guide
 
-This repository is a Laravel 12 app built around ticket management, Blade views, Tailwind CSS, Alpine.js, and Vite. See [README.md](README.md) for the full product workflow and setup notes.
+This repository is a Laravel 12 app for internal ticket management. Use [README.md](README.md) for product workflows and setup, and keep this file focused on repo-specific coding guidance.
 
-## Project shape
+## Repo map
 
-- App entry points: [routes/web.php](routes/web.php) and [routes/auth.php](routes/auth.php)
-- Domain models: [app/Models](app/Models)
+- App entry points: [routes/web.php](routes/web.php), [routes/auth.php](routes/auth.php)
+- Models: [app/Models](app/Models)
 - HTTP behavior: [app/Http/Controllers](app/Http/Controllers)
+- Ticket authorization: [app/Policies/TicketPolicy.php](app/Policies/TicketPolicy.php)
+- Role enforcement: [app/Http/Middleware](app/Http/Middleware), especially [bootstrap/app.php](bootstrap/app.php)
 - Shared layout: [resources/views/layouts/app.blade.php](resources/views/layouts/app.blade.php)
 - Reusable UI: [resources/views/components](resources/views/components)
-- Ticket authorization: [app/Policies/TicketPolicy.php](app/Policies/TicketPolicy.php)
-- Role checks: [app/Http/Middleware/AdminMiddleware.php](app/Http/Middleware/AdminMiddleware.php)
+- Feature coverage: [tests/Feature](tests/Feature)
+
+## Project conventions
+
+- Keep business logic in Laravel controllers, requests, models, routes, and Blade views; do not introduce a separate client-side framework.
+- Preserve the role contract: `admin`, `operador`, and `solicitante`.
+- Keep ticket status and priority values aligned with the app: `open`, `in_progress`, `closed`; `low`, `medium`, `high`.
+- Route and middleware naming matter: regular ticket routes use `tickets.*`, admin routes use `admin.*`, and dashboard access depends on the `admin` and `role` middleware aliases configured in [bootstrap/app.php](bootstrap/app.php).
+- Keep authorization in policies and middleware, not only in Blade conditions.
+- Before renaming relation names or changing ticket fields, check [app/Models/Ticket.php](app/Models/Ticket.php); older code still references fields like `user`, `requester`, `operator`, and `area`.
+- Ticket updates may create audit rows in [app/Models/TicketAudit.php](app/Models/TicketAudit.php) and notifications in [app/Notifications/TicketUpdatedNotification.php](app/Notifications/TicketUpdatedNotification.php); keep those updates in the same transaction.
+- Requesters can reply to their own tickets but cannot edit ticket fields; operators manage visible/assigned tickets; admins manage users and areas and can delete tickets.
+- Preserve the default local setup: SQLite for local dev and in-memory SQLite for tests, as configured in [phpunit.xml](phpunit.xml).
+- The seeded admin account is `admin@admin.com` / `admin` for local development only.
 
 ## Common commands
 
-- Install and initialize the project: `composer setup`
-- Run the app stack: `composer dev`
+- Install dependencies and initialize the app: `composer setup`
+- Run the full local stack: `composer dev`
 - Run tests: `composer test` or `php artisan test --filter="..."`
 - Build frontend assets: `npm run build`
-- Run the Vite dev server: `npm run dev`
-- Apply migrations: `php artisan migrate --force`
-- Process queued mail notifications: `php artisan queue:work`
-- Compile Blade templates before deploy checks: `php artisan view:cache`
-
-## Coding conventions
-
-- Keep behavior in Laravel controllers, requests, models, routes, and Blade views rather than introducing a separate frontend framework.
-- Preserve route naming and role flow: regular ticket routes use `tickets.*`, admin routes use `admin.*`, and dashboards rely on the middleware aliases in [bootstrap/app.php](bootstrap/app.php).
-- Use the shared application shell and reusable components instead of custom page scaffolding.
-- Use Tailwind utility classes and Alpine for lightweight client-side interactions.
-- Keep authorization in policies and middleware, not only in Blade conditions.
-- Validate submitted fields server-side and update model relationships and `$fillable` fields whenever the schema changes.
-- Preserve the seeded role contract: `admin`, `operador`, and `solicitante`.
-- Check [app/Models/Ticket.php](app/Models/Ticket.php) before changing ticket relation names; older code may still refer to `user` instead of `requester`, `operator`, or `area`.
-- Ticket updates may create audit entries in [app/Models/TicketAudit.php](app/Models/TicketAudit.php) and notifications in [app/Notifications/TicketUpdatedNotification.php](app/Notifications/TicketUpdatedNotification.php); keep those operations inside the same transaction.
-- When changing shared layouts, components, CSS, or JavaScript, run the relevant build checks and keep generated assets out of source changes.
-- Add or update focused Pest coverage for changed behavior before or alongside the fix.
-
-## Important project notes
-
-- Default local database is SQLite; tests use in-memory SQLite and array-backed cache/session settings from [phpunit.xml](phpunit.xml).
-- The seeded admin account is `admin@admin.com` with password `admin` for local development only.
-- Local mail is configured to log by default; queue workers are required for actual notification delivery in development.
+- Run Vite in dev mode: `npm run dev`
+- Apply migrations without prompting: `php artisan migrate --force`
+- Process queued mail/notifications: `php artisan queue:work`
+- Cache Blade views before deploy checks: `php artisan view:cache`
 
 ## Change checklist
 
-- Inspect the related route, controller, model, migration, and Blade view before editing a feature.
-- Add focused Pest coverage for ticket, role, area, and admin authorization changes.
-- Run the narrow test that checks the broken path, then the relevant broader suite when practical.
-- Run `npm run build` for any CSS, JS, or Blade change that affects the compiled frontend.
-- Run `php artisan view:cache` when changing shared layouts or components.
+- Inspect the matching route, controller, model, migration, and Blade view before editing a feature.
+- Add or update focused Pest coverage for ticket, role, area, and admin authorization changes.
+- When changing shared layouts/components/CSS/JS, run the relevant frontend validation and keep generated assets out of source changes.
+- When editing ticket permissions or dashboard redirects, verify both middleware and policy behavior.
+- For layout/component changes, run `php artisan view:cache` after the update.
+
+## Relevant docs
+
+- [README.md](README.md)
+- [composer.json](composer.json)
+- [package.json](package.json)
+- [phpunit.xml](phpunit.xml)

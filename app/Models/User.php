@@ -72,4 +72,9 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Role::class);
     }
+
+    public function hasValidRole(): bool
+    {
+        return $this->is_active && in_array($this->role?->name, ['admin', 'operador', 'solicitante'], true);
+    }
 }

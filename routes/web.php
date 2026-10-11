@@ -13,7 +13,7 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/dashboard', function (Request $request) {
         $user = $request->user();
 
@@ -55,7 +55,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('tickets', TicketController::class);
 });
 
-Route::middleware(['auth', 'admin'])
+Route::middleware(['auth', 'admin', 'active'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
