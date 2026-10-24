@@ -30,6 +30,11 @@ class TicketPolicy
         return $ticket->user_id === $user->id;
     }
 
+    public function viewAny(User $user): bool
+    {
+        return in_array($user->role?->name, ['admin', 'operador', 'solicitante'], true);
+    }
+
     public function create(User $user): bool
     {
         return in_array($user->role?->name, ['solicitante', 'operador'], true);
@@ -61,7 +66,7 @@ class TicketPolicy
 
     public function delete(User $user, Ticket $ticket): bool
     {
-        return $this->isAdmin($user) || $ticket->user_id === $user->id;
+        return $this->isAdmin($user);
     }
 
     private function isAdmin(User $user): bool
