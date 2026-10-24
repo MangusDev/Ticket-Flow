@@ -44,7 +44,6 @@ class TicketController extends Controller
             'area_id' => ['required', Rule::exists('areas', 'id')->where(fn ($query) => $query->where('is_active', true))],
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'status' => 'required|string|in:open,closed,in_progress',
             'priority' => 'required|string|in:low,medium,high',
         ]);
 
@@ -81,6 +80,10 @@ class TicketController extends Controller
         if ($isOperator) {
             Gate::authorize('update', $ticket);
 
+            if (! $request->exists('operator_id')) {
+                $request->merge(['operator_id' => $ticket->operator_id]);
+            }
+
             $validated = $request->validate([
                 'area_id' => [
                     'required',
@@ -90,20 +93,25 @@ class TicketController extends Controller
                 'priority' => 'required|string|in:low,medium,high',
                 'operator_id' => [
                     'nullable',
-                    Rule::exists('users', 'id')->where(function ($query) {
+                    Rule::exists('users', 'id')->where(function ($query) use ($request) {
                         $query->where('is_active', true)
+                            ->where('area_id', $request->input('area_id'))
                             ->whereIn('role_id', Role::where('name', 'operador')->pluck('id'));
                     }),
                 ],
                 'comment' => 'nullable|string|max:5000',
             ]);
 
+            if (filled($validated['comment'] ?? null)) {
+                Gate::authorize('respond', $ticket);
+            }
+
             if (!Gate::allows('assign', $ticket)) {
                 unset($validated['operator_id']);
             }
 
-            if ($ticket->status !== $validated['status']) {
-                Gate::authorize('changeStatus', $ticket);
+            if ($ticket->status !== $validated['status'] || $ticket->status === 'closed') {
+                Gate::authorize('changeStatus', [$ticket, $validated['status']]);
             }
 
         } else {

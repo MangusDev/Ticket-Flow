@@ -110,6 +110,7 @@
 
                                 <option
                                     value="{{ $role->id }}"
+                                    data-role-name="{{ $role->name }}"
                                     @selected(old('role_id') == $role->id)
                                 >
                                     {{ ucfirst($role->name) }}
@@ -130,16 +131,16 @@
                     <div class="mb-6">
 
                         <label class="block font-medium mb-1">
-                            Área
+                            Área (obrigatória para operadores e solicitantes)
                         </label>
 
                         <select
                             name="area_id"
+                            id="area_id"
                             class="w-full border-gray-300 rounded"
-                            required
                         >
                             <option value="">
-                                Selecione
+                                Sem área (somente administrador)
                             </option>
 
                             @foreach($areas as $area)
@@ -182,6 +183,24 @@
                     </div>
 
                 </form>
+
+                <script>
+                    const roleSelect = document.querySelector('select[name="role_id"]');
+                    const areaSelect = document.getElementById('area_id');
+
+                    function updateAreaRequirement() {
+                        const selectedRole = roleSelect.options[roleSelect.selectedIndex];
+                        const isAdmin = selectedRole?.dataset.roleName === 'admin';
+                        areaSelect.required = !isAdmin;
+
+                        if (isAdmin) {
+                            areaSelect.value = '';
+                        }
+                    }
+
+                    roleSelect.addEventListener('change', updateAreaRequirement);
+                    updateAreaRequirement();
+                </script>
 
             </div>
 

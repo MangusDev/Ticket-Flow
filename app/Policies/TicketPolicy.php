@@ -7,6 +7,12 @@ use App\Models\User;
 
 class TicketPolicy
 {
+    private const STATUS_TRANSITIONS = [
+        'open' => ['in_progress', 'closed'],
+        'in_progress' => ['open', 'closed'],
+        'closed' => ['open'],
+    ];
+
     public function before(User $user, string $ability): ?bool
     {
         if (! $user->hasValidRole()) {
@@ -48,15 +54,19 @@ class TicketPolicy
     public function respond(User $user, Ticket $ticket): bool
     {
         if ($this->isOperator($user)) {
-            return true;
+            return $ticket->status !== 'closed' && $this->view($user, $ticket);
         }
 
-        return $this->isRequester($user) && $ticket->user_id === $user->id;
+        return $this->isRequester($user)
+            && $ticket->user_id === $user->id
+            && $ticket->status !== 'closed';
     }
 
-    public function changeStatus(User $user, Ticket $ticket): bool
+    public function changeStatus(User $user, Ticket $ticket, string $newStatus): bool
     {
-        return $this->isOperator($user);
+        return $this->isOperator($user)
+            && $this->view($user, $ticket)
+            && in_array($newStatus, self::STATUS_TRANSITIONS[$ticket->status] ?? [], true);
     }
 
     public function assign(User $user, Ticket $ticket): bool

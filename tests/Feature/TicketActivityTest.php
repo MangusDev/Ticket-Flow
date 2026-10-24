@@ -98,6 +98,96 @@ test('requester can add a response and notify assigned operator and area', funct
     );
 });
 
+test('requesters cannot respond to closed tickets', function () {
+    [, $requester, $ticket] = activityTicket();
+    $ticket->update(['status' => 'closed']);
+    Notification::fake();
+
+    $this->actingAs($requester)
+        ->put(route('tickets.update', $ticket), [
+            'comment' => 'Resposta depois do encerramento.',
+        ])
+        ->assertForbidden();
+
+    expect(TicketAudit::count())->toBe(0);
+    Notification::assertNothingSent();
+});
+
+test('operators must explicitly reopen closed tickets before responding', function () {
+    [$operator, , $ticket] = activityTicket();
+    $ticket->update(['status' => 'closed']);
+    Notification::fake();
+
+    $this->actingAs($operator)
+        ->put(route('tickets.update', $ticket), [
+            'area_id' => $ticket->area_id,
+            'status' => 'closed',
+            'priority' => $ticket->priority,
+            'comment' => 'Resposta em ticket fechado.',
+        ])
+        ->assertForbidden();
+
+    expect($ticket->fresh()->status)->toBe('closed')
+        ->and(TicketAudit::count())->toBe(0);
+    Notification::assertNothingSent();
+
+    $this->actingAs($operator)
+        ->put(route('tickets.update', $ticket), [
+            'area_id' => $ticket->area_id,
+            'status' => 'in_progress',
+            'priority' => $ticket->priority,
+        ])
+        ->assertForbidden();
+
+    expect($ticket->fresh()->status)->toBe('closed');
+});
+
+test('operators can reopen a closed ticket before responding', function () {
+    [$operator, $requester, $ticket] = activityTicket();
+    $ticket->update(['status' => 'closed']);
+    Notification::fake();
+
+    $this->actingAs($operator)
+        ->put(route('tickets.update', $ticket), [
+            'area_id' => $ticket->area_id,
+            'status' => 'open',
+            'priority' => $ticket->priority,
+        ])
+        ->assertRedirectToRoute('tickets.index');
+
+    expect($ticket->fresh()->status)->toBe('open')
+        ->and(TicketAudit::firstOrFail()->previous_status)->toBe('closed')
+        ->and(TicketAudit::firstOrFail()->new_status)->toBe('open');
+
+    Notification::assertSentTo($requester, TicketUpdatedNotification::class);
+});
+
+test('requester responses do not notify inactive operators', function () {
+    [, $requester, $ticket] = activityTicket();
+    $operatorRole = Role::where('name', 'operador')->firstOrFail();
+    $inactiveAreaOperator = User::factory()->create([
+        'role_id' => $operatorRole->id,
+        'area_id' => $ticket->area_id,
+        'is_active' => false,
+    ]);
+    $assignedInactiveOperator = User::factory()->create([
+        'role_id' => $operatorRole->id,
+        'area_id' => Area::create(['name' => 'Outra área'])->id,
+        'is_active' => false,
+    ]);
+    $ticket->update(['operator_id' => $assignedInactiveOperator->id]);
+    Notification::fake();
+
+    $this->actingAs($requester)
+        ->put(route('tickets.update', $ticket), [
+            'comment' => 'Atualização do solicitante.',
+        ])
+        ->assertRedirectToRoute('tickets.index');
+
+    Notification::assertNotSentTo($inactiveAreaOperator, TicketUpdatedNotification::class);
+    Notification::assertNotSentTo($assignedInactiveOperator, TicketUpdatedNotification::class);
+});
+
 test('operator can assign a ticket to another operator', function () {
     [$operator, $requester, $ticket] = activityTicket();
     $otherOperatorRole = Role::where('name', 'operador')->firstOrFail();

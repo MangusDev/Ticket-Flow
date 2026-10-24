@@ -44,7 +44,7 @@
                         <select id="operator_id" name="operator_id" class="ui-control mt-1 block w-full px-3 py-2" >
                             <option value="">Sem operador atribuído</option>
                             @foreach ($operators as $operator)
-                                <option value="{{ $operator->id }}" @selected(old('operator_id', $ticket->operator_id) == $operator->id)>
+                                <option value="{{ $operator->id }}" data-area-id="{{ $operator->area_id }}" @selected(old('operator_id', $ticket->operator_id) == $operator->id)>
                                     {{ $operator->name }}{{ $operator->area ? ' · '.$operator->area->name : '' }}
                                 </option>
                             @endforeach
@@ -97,4 +97,28 @@
             @endif
         </div>
     </div>
+
+    <script>
+        const areaSelect = document.getElementById('area_id');
+        const operatorSelect = document.getElementById('operator_id');
+
+        function filterOperatorsByArea() {
+            for (const option of operatorSelect.options) {
+                if (!option.value) {
+                    continue;
+                }
+
+                option.disabled = option.dataset.areaId !== areaSelect.value;
+                option.hidden = option.disabled;
+            }
+
+            const selectedOperator = operatorSelect.selectedOptions[0];
+            if (selectedOperator?.disabled) {
+                operatorSelect.value = '';
+            }
+        }
+
+        areaSelect.addEventListener('change', filterOperatorsByArea);
+        filterOperatorsByArea();
+    </script>
 </x-app-layout>

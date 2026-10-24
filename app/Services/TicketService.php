@@ -45,7 +45,7 @@ class TicketService
     {
         $operatorRoleId = Role::where('name', 'operador')->value('id');
         
-        return User::when($operatorRoleId, function ($query) use ($operatorRoleId) {
+        return User::with('area')->when($operatorRoleId, function ($query) use ($operatorRoleId) {
             $query->where('role_id', $operatorRoleId)
                 ->where('is_active', true);
         }, function ($query) {
@@ -56,6 +56,8 @@ class TicketService
     public function createTicket(array $data, User $user): Ticket
     {
         $data['user_id'] = $user->id;
+        $data['status'] = 'open';
+
         return Ticket::create($data);
     }
 
@@ -104,10 +106,11 @@ class TicketService
             $operatorRoleId = Role::where('name', 'operador')->value('id');
             $notifiableUsers = User::query()
                 ->when($operatorRoleId, fn ($query) => $query->where('role_id', $operatorRoleId))
+                ->where('is_active', true)
                 ->where('area_id', $ticket->area_id)
                 ->get();
 
-            if ($ticket->operator_id) {
+            if ($ticket->operator?->is_active) {
                 $notifiableUsers->push($ticket->operator);
             }
 

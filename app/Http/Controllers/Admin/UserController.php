@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class UserController extends Controller
@@ -31,7 +32,7 @@ class UserController extends Controller
     public function create(): View
     {
         $roles = Role::orderBy('name')->get();
-        $areas = Area::orderBy('name')->get();
+        $areas = Area::where('is_active', true)->orderBy('name')->get();
 
         return view('admin.users.create', compact('roles', 'areas'));
     }
@@ -41,14 +42,25 @@ class UserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $isAdmin = Role::whereKey($request->input('role_id'))->value('name') === 'admin';
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
-            'role_id' => 'required|exists:roles,id',
-            'area_id' => 'required|exists:areas,id',
+            'role_id' => [
+                'required',
+                Rule::exists('roles', 'id')->whereIn('name', ['admin', 'operador', 'solicitante']),
+            ],
+            'area_id' => [
+                Rule::prohibitedIf($isAdmin),
+                Rule::requiredIf(! $isAdmin),
+                'nullable',
+                Rule::exists('areas', 'id')->where(fn ($query) => $query->where('is_active', true)),
+            ],
         ]);
 
+        $validated['area_id'] = $isAdmin ? null : $validated['area_id'];
         User::create($validated);
 
         return redirect()->route('admin.users.index')->with('success', 'Usuário criado com sucesso.');
@@ -68,7 +80,7 @@ class UserController extends Controller
     public function edit(User $user): View
     {
         $roles = Role::orderBy('name')->get();
-        $areas = Area::orderBy('name')->get();
+        $areas = Area::where('is_active', true)->orderBy('name')->get();
 
         return view('admin.users.edit', compact('roles', 'areas', 'user'));
     }
@@ -78,6 +90,8 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user): RedirectResponse
     {
+        $isAdmin = Role::whereKey($request->input('role_id'))->value('name') === 'admin';
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => [
@@ -87,20 +101,26 @@ class UserController extends Controller
                 'unique:users,email,' . $user->id
             ],
             'password' => 'nullable|string|min:8|confirmed',
-            'role_id' => 'required|exists:roles,id',
-            'area_id' => 'required|exists:areas,id',
+            'role_id' => [
+                'required',
+                Rule::exists('roles', 'id')->whereIn('name', ['admin', 'operador', 'solicitante']),
+            ],
+            'area_id' => [
+                Rule::prohibitedIf($isAdmin),
+                Rule::requiredIf(! $isAdmin),
+                'nullable',
+                Rule::exists('areas', 'id')->where(fn ($query) => $query->where('is_active', true)),
+            ],
         ]);
 
         $user->name = $validated['name'];
         $user->email = $validated['email'];
         $user->role_id = $validated['role_id'];
-        $user->area_id = $validated['area_id'];
+        $user->area_id = $isAdmin ? null : $validated['area_id'];
         
         if (!empty($validated['password'])) {
             $user->password = Hash::make($validated['password']);
         }
-        $user->role_id = $validated['role_id'];
-        $user->area_id = $validated['area_id'];
         $user->save();
 
         return redirect()->route('admin.users.index')->with('success', 'Usuário atualizado com sucesso.');

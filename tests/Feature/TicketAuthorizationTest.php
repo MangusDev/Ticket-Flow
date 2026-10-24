@@ -42,6 +42,24 @@ test('requesters cannot update another users ticket', function () {
     expect($ticket->fresh()->title)->toBe('Original');
 });
 
+test('requesters always create tickets with open status', function (string $submittedStatus) {
+    $role = ticketRole('solicitante');
+    $area = ticketArea('TI');
+    $user = User::factory()->create(['role_id' => $role->id, 'area_id' => $area->id]);
+
+    $this->actingAs($user)
+        ->post(route('tickets.store'), [
+            'area_id' => $area->id,
+            'title' => 'Novo ticket',
+            'description' => 'Descrição',
+            'status' => $submittedStatus,
+            'priority' => 'medium',
+        ])
+        ->assertRedirectToRoute('tickets.index');
+
+    expect(Ticket::firstOrFail()->status)->toBe('open');
+})->with(['closed', 'in_progress']);
+
 test('requesters cannot update their own ticket', function () {
     $role = ticketRole('solicitante');
     $area = ticketArea('TI');
@@ -246,6 +264,37 @@ test('operators cannot assign tickets to inactive operators', function () {
             'status' => 'open',
             'priority' => 'low',
             'operator_id' => $inactiveOperator->id,
+        ])
+        ->assertSessionHasErrors('operator_id');
+
+    expect($ticket->fresh()->operator_id)->toBeNull();
+});
+
+test('operators can only assign tickets to active operators in the ticket area', function () {
+    $operatorRole = ticketRole('operador');
+    $area = ticketArea('TI');
+    $otherArea = ticketArea('Financeiro');
+    $operator = User::factory()->create(['role_id' => $operatorRole->id, 'area_id' => $area->id]);
+    $otherAreaOperator = User::factory()->create([
+        'role_id' => $operatorRole->id,
+        'area_id' => $otherArea->id,
+    ]);
+    $requester = User::factory()->create();
+    $ticket = Ticket::create([
+        'user_id' => $requester->id,
+        'area_id' => $area->id,
+        'title' => 'Ticket',
+        'description' => 'Description',
+        'status' => 'open',
+        'priority' => 'low',
+    ]);
+
+    $this->actingAs($operator)
+        ->put(route('tickets.update', $ticket), [
+            'area_id' => $area->id,
+            'status' => 'open',
+            'priority' => 'low',
+            'operator_id' => $otherAreaOperator->id,
         ])
         ->assertSessionHasErrors('operator_id');
 
