@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\TicketStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,9 +12,9 @@ return new class extends Migration
         Schema::create('ticket_audits', function (Blueprint $table) {
             $table->id();
             $table->foreignId('ticket_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('previous_status')->nullable();
-            $table->string('new_status')->nullable();
+            $table->foreignId('user_id')->constrained()->restrictOnDelete();
+            $table->enum('previous_status', TicketStatus::values())->nullable();
+            $table->enum('new_status', TicketStatus::values())->nullable();
             $table->text('comment')->nullable();
             $table->timestamps();
         });

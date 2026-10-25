@@ -2,17 +2,12 @@
 
 namespace App\Policies;
 
+use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use App\Models\User;
 
 class TicketPolicy
 {
-    private const STATUS_TRANSITIONS = [
-        'open' => ['in_progress', 'closed'],
-        'in_progress' => ['open', 'closed'],
-        'closed' => ['open'],
-    ];
-
     public function before(User $user, string $ability): ?bool
     {
         if (! $user->hasValidRole()) {
@@ -54,19 +49,26 @@ class TicketPolicy
     public function respond(User $user, Ticket $ticket): bool
     {
         if ($this->isOperator($user)) {
-            return $ticket->status !== 'closed' && $this->view($user, $ticket);
+            return $ticket->status !== TicketStatus::CLOSED->value && $this->view($user, $ticket);
         }
 
         return $this->isRequester($user)
             && $ticket->user_id === $user->id
-            && $ticket->status !== 'closed';
+            && $ticket->status !== TicketStatus::CLOSED->value;
     }
 
     public function changeStatus(User $user, Ticket $ticket, string $newStatus): bool
     {
         return $this->isOperator($user)
             && $this->view($user, $ticket)
-            && in_array($newStatus, self::STATUS_TRANSITIONS[$ticket->status] ?? [], true);
+            && TicketStatus::canTransition($ticket->status, $newStatus);
+    }
+
+    public function reopen(User $user, Ticket $ticket): bool
+    {
+        return $this->isOperator($user)
+            && $this->view($user, $ticket)
+            && $ticket->status === TicketStatus::CLOSED->value;
     }
 
     public function assign(User $user, Ticket $ticket): bool

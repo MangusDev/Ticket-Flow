@@ -2,13 +2,14 @@
 
 namespace App\Notifications;
 
+use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class TicketUpdatedNotification extends Notification implements ShouldQueue
+class TicketUpdatedNotification extends Notification implements ShouldQueueAfterCommit
 {
     use Queueable;
 
@@ -32,7 +33,7 @@ class TicketUpdatedNotification extends Notification implements ShouldQueue
             ->line('Seu ticket "'.$this->ticket->title.'" foi atualizado.');
 
         if ($this->statusChanged) {
-            $message->line('Novo status: '.$this->ticket->status.'.');
+            $message->line('Novo status: '.TicketStatus::labelFor($this->ticket->status).'.');
         }
 
         if ($this->comment) {

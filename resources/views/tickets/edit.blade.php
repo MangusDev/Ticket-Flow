@@ -32,8 +32,8 @@
                     <div>
                         <x-input-label for="priority" value="Prioridade" />
                         <select id="priority" name="priority" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
-                            @foreach (['low' => 'Baixa', 'medium' => 'Média', 'high' => 'Alta'] as $value => $label)
-                                <option value="{{ $value }}" @selected(old('priority', $ticket->priority) === $value)>{{ $label }}</option>
+                            @foreach (\App\Enums\TicketPriority::cases() as $priority)
+                                <option value="{{ $priority->value }}" @selected(old('priority', $ticket->priority) === $priority->value)>{{ $priority->label() }}</option>
                             @endforeach
                         </select>
                         <x-input-error class="mt-2" :messages="$errors->get('priority')" />
@@ -55,8 +55,8 @@
                     <div>
                         <x-input-label for="status" value="Status" />
                         <select id="status" name="status" class="ui-control mt-1 block w-full px-3 py-2" required>
-                            @foreach (['open' => 'Aberto', 'in_progress' => 'Em andamento', 'closed' => 'Fechado'] as $value => $label)
-                                <option value="{{ $value }}" @selected(old('status', $ticket->status) === $value)>{{ $label }}</option>
+                            @foreach (\App\Enums\TicketStatus::cases() as $status)
+                                <option value="{{ $status->value }}" @selected(old('status', $ticket->status) === $status->value)>{{ $status->label() }}</option>
                             @endforeach
                         </select>
                         <x-input-error class="mt-2" :messages="$errors->get('status')" />
@@ -85,7 +85,7 @@
                                     {{ $audit->user->name }} em {{ $audit->created_at->format('d/m/Y H:i') }}
                                 </p>
                                 @if ($audit->previous_status !== $audit->new_status)
-                                    <p class="mt-1">Status: {{ $audit->previous_status }} &rarr; {{ $audit->new_status }}</p>
+                                    <p class="mt-1">Status: {{ \App\Enums\TicketStatus::labelFor($audit->previous_status) }} &rarr; {{ \App\Enums\TicketStatus::labelFor($audit->new_status) }}</p>
                                 @endif
                                 @if ($audit->comment)
                                     <p class="mt-1">{{ $audit->comment }}</p>

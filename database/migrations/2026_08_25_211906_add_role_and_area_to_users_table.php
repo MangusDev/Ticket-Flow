@@ -19,7 +19,7 @@ return new class extends Migration
 
         if (! Schema::hasColumn('users', 'area_id')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->foreignId('area_id')->nullable()->constrained('areas')->onDelete('set null');
+                $table->foreignId('area_id')->nullable()->constrained('areas')->restrictOnDelete();
             });
         }
     }

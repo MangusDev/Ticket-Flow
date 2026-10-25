@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\TicketStatus;
 use App\Models\Area;
 use App\Models\Role;
 use App\Models\Ticket;
@@ -56,7 +57,7 @@ class TicketService
     public function createTicket(array $data, User $user): Ticket
     {
         $data['user_id'] = $user->id;
-        $data['status'] = 'open';
+        $data['status'] = TicketStatus::OPEN->value;
 
         return Ticket::create($data);
     }

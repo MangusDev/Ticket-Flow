@@ -6,6 +6,7 @@ use App\Models\Ticket;
 use App\Models\TicketAudit;
 use App\Models\User;
 use App\Notifications\TicketUpdatedNotification;
+use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Support\Facades\Notification;
 
 function activityTicket(): array
@@ -26,6 +27,11 @@ function activityTicket(): array
 
     return [$operator, $requester, $ticket];
 }
+
+test('ticket update notifications are queued after transaction commit', function () {
+    expect(new TicketUpdatedNotification(Ticket::make()))
+        ->toBeInstanceOf(ShouldQueueAfterCommit::class);
+});
 
 test('operator response and status change create audit and notify requester', function () {
     [$operator, $requester, $ticket] = activityTicket();
@@ -107,7 +113,8 @@ test('requesters cannot respond to closed tickets', function () {
         ->put(route('tickets.update', $ticket), [
             'comment' => 'Resposta depois do encerramento.',
         ])
-        ->assertForbidden();
+        ->assertRedirectToRoute('tickets.show', $ticket)
+        ->assertSessionHas('error', 'Este ticket está fechado e não pode receber novas respostas.');
 
     expect(TicketAudit::count())->toBe(0);
     Notification::assertNothingSent();
@@ -125,7 +132,8 @@ test('operators must explicitly reopen closed tickets before responding', functi
             'priority' => $ticket->priority,
             'comment' => 'Resposta em ticket fechado.',
         ])
-        ->assertForbidden();
+        ->assertRedirectToRoute('tickets.show', $ticket)
+        ->assertSessionHas('error', 'Este ticket está fechado. Reabra-o antes de fazer alterações.');
 
     expect($ticket->fresh()->status)->toBe('closed')
         ->and(TicketAudit::count())->toBe(0);
@@ -137,29 +145,38 @@ test('operators must explicitly reopen closed tickets before responding', functi
             'status' => 'in_progress',
             'priority' => $ticket->priority,
         ])
-        ->assertForbidden();
+        ->assertRedirectToRoute('tickets.show', $ticket);
 
     expect($ticket->fresh()->status)->toBe('closed');
 });
 
-test('operators can reopen a closed ticket before responding', function () {
+test('operators can explicitly reopen a closed ticket', function () {
     [$operator, $requester, $ticket] = activityTicket();
     $ticket->update(['status' => 'closed']);
     Notification::fake();
 
     $this->actingAs($operator)
-        ->put(route('tickets.update', $ticket), [
-            'area_id' => $ticket->area_id,
-            'status' => 'open',
-            'priority' => $ticket->priority,
-        ])
-        ->assertRedirectToRoute('tickets.index');
+        ->patch(route('tickets.reopen', $ticket))
+        ->assertRedirectToRoute('tickets.show', $ticket)
+        ->assertSessionHas('success', 'Ticket reaberto com sucesso.');
 
     expect($ticket->fresh()->status)->toBe('open')
         ->and(TicketAudit::firstOrFail()->previous_status)->toBe('closed')
         ->and(TicketAudit::firstOrFail()->new_status)->toBe('open');
 
     Notification::assertSentTo($requester, TicketUpdatedNotification::class);
+});
+
+test('requesters cannot reopen a closed ticket', function () {
+    [, $requester, $ticket] = activityTicket();
+    $ticket->update(['status' => 'closed']);
+
+    $this->actingAs($requester)
+        ->patch(route('tickets.reopen', $ticket))
+        ->assertForbidden();
+
+    expect($ticket->fresh()->status)->toBe('closed')
+        ->and(TicketAudit::count())->toBe(0);
 });
 
 test('requester responses do not notify inactive operators', function () {

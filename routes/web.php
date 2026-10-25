@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\TicketController;
+use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -44,14 +45,15 @@ Route::middleware(['auth', 'active'])->group(function () {
         return view('dashboard', [
             'metrics' => [
                 'total' => $tickets->count(),
-                'open' => $tickets->where('status', 'open')->count(),
-                'in_progress' => $tickets->where('status', 'in_progress')->count(),
-                'closed' => $tickets->where('status', 'closed')->count(),
+                TicketStatus::OPEN->value => $tickets->where('status', TicketStatus::OPEN->value)->count(),
+                TicketStatus::IN_PROGRESS->value => $tickets->where('status', TicketStatus::IN_PROGRESS->value)->count(),
+                TicketStatus::CLOSED->value => $tickets->where('status', TicketStatus::CLOSED->value)->count(),
             ],
             'recentTickets' => $tickets->take(3),
         ]);
     })->middleware('role:solicitante')->name('solicitante.dashboard');
 
+    Route::patch('tickets/{ticket}/reopen', [TicketController::class, 'reopen'])->name('tickets.reopen');
     Route::resource('tickets', TicketController::class);
 });
 

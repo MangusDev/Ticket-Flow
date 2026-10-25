@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TicketPriority;
+use App\Enums\TicketStatus;
 use App\Models\Role;
 use App\Models\Ticket;
 use App\Services\TicketService;
@@ -44,7 +46,7 @@ class TicketController extends Controller
             'area_id' => ['required', Rule::exists('areas', 'id')->where(fn ($query) => $query->where('is_active', true))],
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'priority' => 'required|string|in:low,medium,high',
+            'priority' => ['required', 'string', Rule::in(TicketPriority::values())],
         ]);
 
         $this->ticketService->createTicket($validated, $request->user());
@@ -76,9 +78,13 @@ class TicketController extends Controller
         $user = $request->user();
         $isOperator = $user->role?->name === 'operador';
 
-        // 1. Autorização e Validação (Responsabilidade do Controller)
         if ($isOperator) {
             Gate::authorize('update', $ticket);
+
+            if ($ticket->status === TicketStatus::CLOSED->value) {
+                return redirect()->route('tickets.show', $ticket)
+                    ->with('error', 'Este ticket está fechado. Reabra-o antes de fazer alterações.');
+            }
 
             if (! $request->exists('operator_id')) {
                 $request->merge(['operator_id' => $ticket->operator_id]);
@@ -89,8 +95,8 @@ class TicketController extends Controller
                     'required',
                     Rule::exists('areas', 'id')->where(fn ($query) => $query->where('is_active', true)),
                 ],
-                'status' => 'required|string|in:open,closed,in_progress',
-                'priority' => 'required|string|in:low,medium,high',
+                'status' => ['required', 'string', Rule::in(TicketStatus::values())],
+                'priority' => ['required', 'string', Rule::in(TicketPriority::values())],
                 'operator_id' => [
                     'nullable',
                     Rule::exists('users', 'id')->where(function ($query) use ($request) {
@@ -110,11 +116,20 @@ class TicketController extends Controller
                 unset($validated['operator_id']);
             }
 
-            if ($ticket->status !== $validated['status'] || $ticket->status === 'closed') {
+            if ($ticket->status !== $validated['status'] || $ticket->status === TicketStatus::CLOSED->value) {
                 Gate::authorize('changeStatus', [$ticket, $validated['status']]);
             }
 
         } else {
+            if (
+                $user->role?->name === 'solicitante'
+                && $ticket->user_id === $user->id
+                && $ticket->status === TicketStatus::CLOSED->value
+            ) {
+                return redirect()->route('tickets.show', $ticket)
+                    ->with('error', 'Este ticket está fechado e não pode receber novas respostas.');
+            }
+
             Gate::authorize('respond', $ticket);
 
             if ($request->hasAny(['area_id', 'title', 'description', 'status', 'priority', 'operator_id'])) {
@@ -126,14 +141,22 @@ class TicketController extends Controller
             ]);
         }
 
-        // Separa o comentário dos dados de atualização da Model
         $comment = trim((string) ($validated['comment'] ?? '')) ?: null;
         unset($validated['comment']);
 
-        // 2. Chama a regra de negócio do Serviço
         $this->ticketService->updateTicket($ticket, $validated, $user, $comment);
 
         return redirect()->route('tickets.index')->with('success', 'Ticket atualizado com sucesso.');
+    }
+
+    public function reopen(Request $request, Ticket $ticket): RedirectResponse
+    {
+        Gate::authorize('reopen', $ticket);
+
+        $this->ticketService->updateTicket($ticket, ['status' => TicketStatus::OPEN->value], $request->user());
+
+        return redirect()->route('tickets.show', $ticket)
+            ->with('success', 'Ticket reaberto com sucesso.');
     }
 
     public function destroy(Ticket $ticket): RedirectResponse

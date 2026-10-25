@@ -31,11 +31,11 @@
                     </div>
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wide text-ink-500">Status</p>
-                        <p class="mt-2 text-ink-800">{{ ['open' => 'Aberto', 'in_progress' => 'Em andamento', 'closed' => 'Fechado'][$ticket->status] ?? $ticket->status }}</p>
+                        <p class="mt-2 text-ink-800">{{ \App\Enums\TicketStatus::labelFor($ticket->status) }}</p>
                     </div>
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wide text-ink-500">Prioridade</p>
-                        <p class="mt-2 text-ink-800">{{ ['low' => 'Baixa', 'medium' => 'Média', 'high' => 'Alta'][$ticket->priority] ?? $ticket->priority }}</p>
+                        <p class="mt-2 text-ink-800">{{ \App\Enums\TicketPriority::labelFor($ticket->priority) }}</p>
                     </div>
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wide text-ink-500">Data de criação</p>
@@ -53,6 +53,26 @@
                 </div>
             </div>
 
+            @if ($ticket->status === \App\Enums\TicketStatus::CLOSED->value)
+                <div class="mt-6">
+                    @if (Auth::user()->role?->name === 'solicitante' && Auth::id() === $ticket->user_id)
+                        <x-toast type="info" message="Este ticket está fechado e não pode receber novas respostas." />
+                    @endif
+
+                    @can('reopen', $ticket)
+                        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                            <p class="font-semibold text-amber-900">Ticket fechado</p>
+                            <p class="mt-1 text-sm text-amber-800">Reabra o ticket para continuar o atendimento e permitir novas respostas.</p>
+                            <form method="POST" action="{{ route('tickets.reopen', $ticket) }}" class="mt-4">
+                                @csrf
+                                @method('PATCH')
+                                <x-button type="submit">Reabrir ticket</x-button>
+                            </form>
+                        </div>
+                    @endcan
+                </div>
+            @endif
+
             <div class="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-ink-200">
                 <h3 class="text-lg font-semibold text-ink-900">Histórico de respostas e comentários</h3>
 
@@ -67,7 +87,7 @@
 
                                 @if ($audit->previous_status !== $audit->new_status)
                                     <p class="mt-2 text-sm text-ink-700">
-                                        Status: {{ ['open' => 'Aberto', 'in_progress' => 'Em andamento', 'closed' => 'Fechado'][$audit->previous_status] ?? $audit->previous_status }} → {{ ['open' => 'Aberto', 'in_progress' => 'Em andamento', 'closed' => 'Fechado'][$audit->new_status] ?? $audit->new_status }}
+                                        Status: {{ \App\Enums\TicketStatus::labelFor($audit->previous_status) }} → {{ \App\Enums\TicketStatus::labelFor($audit->new_status) }}
                                     </p>
                                 @endif
 
@@ -82,7 +102,7 @@
                 @endif
             </div>
 
-            @if (Auth::user()->role?->name === 'solicitante' && Auth::id() === $ticket->user_id && $ticket->status !== 'closed')
+            @if (Auth::user()->role?->name === 'solicitante' && Auth::id() === $ticket->user_id && $ticket->status !== \App\Enums\TicketStatus::CLOSED->value)
                 <div class="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-ink-200">
                     <h3 class="text-lg font-semibold text-ink-900">Responder ao ticket</h3>
                     <form method="POST" action="{{ route('tickets.update', $ticket) }}" class="mt-5 space-y-4">

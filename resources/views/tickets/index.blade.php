@@ -14,8 +14,8 @@
                 <tr class="transition-colors hover:bg-ink-50">
                     <td class="whitespace-nowrap px-5 py-4"><p class="font-semibold text-ink-900">{{ $ticket->title }}</p><p class="mt-0.5 text-xs text-ink-500">SUP-{{ $ticket->id }}</p></td>
                     <td class="px-5 py-4 text-ink-700">{{ $ticket->area->name }}</td>
-                    <td class="px-5 py-4"><x-badge :tone="['open' => 'info', 'in_progress' => 'warning', 'closed' => 'success'][$ticket->status] ?? 'neutral'">{{ ['open' => 'Aberto', 'in_progress' => 'Em andamento', 'closed' => 'Fechado'][$ticket->status] ?? $ticket->status }}</x-badge></td>
-                    <td class="px-5 py-4"><x-badge :tone="$ticket->priority === 'high' ? 'danger' : ($ticket->priority === 'medium' ? 'warning' : 'neutral')">{{ ucfirst($ticket->priority) }}</x-badge></td>
+                    <td class="px-5 py-4"><x-badge :tone="\App\Enums\TicketStatus::toneFor($ticket->status)">{{ \App\Enums\TicketStatus::labelFor($ticket->status) }}</x-badge></td>
+                    <td class="px-5 py-4"><x-badge :tone="\App\Enums\TicketPriority::toneFor($ticket->priority)">{{ \App\Enums\TicketPriority::labelFor($ticket->priority) }}</x-badge></td>
                     <td class="px-5 py-4">
                         <div class="flex items-center gap-3">
                             <a href="{{ route('tickets.show', $ticket) }}" class="font-semibold text-brand-600 hover:text-brand-700">Ver</a>

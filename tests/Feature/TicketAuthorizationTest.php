@@ -60,6 +60,23 @@ test('requesters always create tickets with open status', function (string $subm
     expect(Ticket::firstOrFail()->status)->toBe('open');
 })->with(['closed', 'in_progress']);
 
+test('ticket creation rejects invalid priorities', function () {
+    $role = ticketRole('solicitante');
+    $area = ticketArea('TI');
+    $user = User::factory()->create(['role_id' => $role->id, 'area_id' => $area->id]);
+
+    $this->actingAs($user)
+        ->post(route('tickets.store'), [
+            'area_id' => $area->id,
+            'title' => 'Novo ticket',
+            'description' => 'Descrição',
+            'priority' => 'urgent',
+        ])
+        ->assertSessionHasErrors('priority');
+
+    expect(Ticket::count())->toBe(0);
+});
+
 test('requesters cannot update their own ticket', function () {
     $role = ticketRole('solicitante');
     $area = ticketArea('TI');
@@ -299,4 +316,39 @@ test('operators can only assign tickets to active operators in the ticket area',
         ->assertSessionHasErrors('operator_id');
 
     expect($ticket->fresh()->operator_id)->toBeNull();
+});
+
+test('operators cannot update tickets with invalid status or priority values', function () {
+    $operatorRole = ticketRole('operador');
+    $requesterRole = ticketRole('solicitante');
+    $area = ticketArea('TI');
+    $operator = User::factory()->create(['role_id' => $operatorRole->id, 'area_id' => $area->id]);
+    $requester = User::factory()->create(['role_id' => $requesterRole->id, 'area_id' => $area->id]);
+    $ticket = Ticket::create([
+        'user_id' => $requester->id,
+        'area_id' => $area->id,
+        'title' => 'Ticket',
+        'description' => 'Description',
+        'status' => 'open',
+        'priority' => 'low',
+    ]);
+
+    $this->actingAs($operator)
+        ->put(route('tickets.update', $ticket), [
+            'area_id' => $area->id,
+            'status' => 'resolved',
+            'priority' => 'low',
+        ])
+        ->assertSessionHasErrors('status');
+
+    $this->actingAs($operator)
+        ->put(route('tickets.update', $ticket), [
+            'area_id' => $area->id,
+            'status' => 'open',
+            'priority' => 'urgent',
+        ])
+        ->assertSessionHasErrors('priority');
+
+    expect($ticket->fresh()->status)->toBe('open')
+        ->and($ticket->fresh()->priority)->toBe('low');
 });
