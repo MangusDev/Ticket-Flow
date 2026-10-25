@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use Illuminate\Support\Facades\Route;
@@ -61,9 +62,8 @@ Route::middleware(['auth', 'admin', 'active'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        Route::get('/dashboard', function () {
-            return view('admin.dashboard');
-        })->name('dashboard');
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/reports/export', [AdminDashboardController::class, 'export'])->name('reports.export');
 
         Route::resource('users', \App\Http\Controllers\Admin\UserController::class)
             ->except(['show']);

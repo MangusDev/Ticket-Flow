@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use App\Models\Area;
+use App\Services\AdminAuditLogger;
 use Illuminate\View\View;
 
 
@@ -41,10 +42,17 @@ class AreaController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
-        Area::create([
+        $area = Area::create([
             'name' => $validated['name'],
             'is_active' => $validated['is_active'] ?? true,
         ]);
+        app(AdminAuditLogger::class)->record(
+            $request->user(),
+            'area.created',
+            $area,
+            $area->name,
+            ['name' => $area->name, 'is_active' => $area->is_active],
+        );
 
         return redirect()->route('admin.areas.index')->with('success', 'Área criada com sucesso.');
     }
@@ -75,19 +83,35 @@ class AreaController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
+        $before = ['name' => $area->name, 'is_active' => $area->is_active];
         $area->update([
             'name' => $validated['name'],
             'is_active' => $validated['is_active'] ?? $area->is_active,
         ]);
+        app(AdminAuditLogger::class)->record(
+            $request->user(),
+            'area.updated',
+            $area,
+            $area->name,
+            ['before' => $before, 'after' => ['name' => $area->name, 'is_active' => $area->is_active]],
+        );
 
         return redirect()->route('admin.areas.index')->with('success', 'Área atualizada com sucesso.');
     }
 
     public function toggle(Area $area): RedirectResponse
     {
+        $wasActive = $area->is_active;
         $area->update([
             'is_active' => ! $area->is_active,
         ]);
+        app(AdminAuditLogger::class)->record(
+            request()->user(),
+            $area->is_active ? 'area.activated' : 'area.deactivated',
+            $area,
+            $area->name,
+            ['is_active' => ['from' => $wasActive, 'to' => $area->is_active]],
+        );
 
         $status = $area->fresh()->is_active ? 'ativada' : 'desativada';
 
@@ -105,6 +129,13 @@ class AreaController extends Controller
         }
 
         $area->delete();
+        app(AdminAuditLogger::class)->record(
+            request()->user(),
+            'area.deleted',
+            $area,
+            $area->name,
+            ['deleted' => true],
+        );
 
         return redirect()->route('admin.areas.index')->with('success', 'Área excluída com sucesso.');
     }

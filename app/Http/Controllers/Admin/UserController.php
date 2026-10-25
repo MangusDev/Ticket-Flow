@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Area;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\AdminAuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -61,7 +62,14 @@ class UserController extends Controller
         ]);
 
         $validated['area_id'] = $isAdmin ? null : $validated['area_id'];
-        User::create($validated);
+        $user = User::create($validated);
+        app(AdminAuditLogger::class)->record(
+            $request->user(),
+            'user.created',
+            $user,
+            "{$user->name} <{$user->email}>",
+            ['name' => $user->name, 'email' => $user->email, 'role_id' => $user->role_id, 'area_id' => $user->area_id],
+        );
 
         return redirect()->route('admin.users.index')->with('success', 'Usuário criado com sucesso.');
     }
@@ -113,6 +121,13 @@ class UserController extends Controller
             ],
         ]);
 
+        $before = [
+            'name' => $user->name,
+            'email' => $user->email,
+            'role_id' => $user->role_id,
+            'area_id' => $user->area_id,
+            'is_active' => $user->is_active,
+        ];
         $user->name = $validated['name'];
         $user->email = $validated['email'];
         $user->role_id = $validated['role_id'];
@@ -123,6 +138,21 @@ class UserController extends Controller
         }
         $user->save();
 
+        $after = [
+            'name' => $user->name,
+            'email' => $user->email,
+            'role_id' => $user->role_id,
+            'area_id' => $user->area_id,
+            'is_active' => $user->is_active,
+        ];
+        app(AdminAuditLogger::class)->record(
+            $request->user(),
+            'user.updated',
+            $user,
+            "{$user->name} <{$user->email}>",
+            ['before' => $before, 'after' => $after],
+        );
+
         return redirect()->route('admin.users.index')->with('success', 'Usuário atualizado com sucesso.');
     }
 
@@ -132,6 +162,13 @@ class UserController extends Controller
     public function destroy(User $user): RedirectResponse
     {
         $user->update(['is_active' => false]);
+        app(AdminAuditLogger::class)->record(
+            request()->user(),
+            'user.deactivated',
+            $user,
+            "{$user->name} <{$user->email}>",
+            ['is_active' => ['from' => true, 'to' => false]],
+        );
 
         return redirect()->route('admin.users.index')->with('success', 'Usuário desativado com sucesso.');
     }
