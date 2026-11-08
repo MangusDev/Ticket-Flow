@@ -1,6 +1,6 @@
 # Ticket-Flow
 
-Sistema interno de gestão de chamados OPEN-SOURCE com Laravel, Blade, Tailwind CSS e Alpine.js.
+Sistema interno de gestão de chamados com Laravel, Blade, Tailwind CSS e Alpine.js.
 
 ## Visão geral
 
