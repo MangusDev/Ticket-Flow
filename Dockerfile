@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) gd mbstring exif pcntl bcmath zip \
+    && docker-php-ext-install -j$(nproc) gd mbstring exif pcntl bcmath zip pdo pdo_sqlite \
     && a2enmod rewrite headers \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -37,9 +37,10 @@ COPY . /var/www/html
 COPY --from=frontend /app/public/build /var/www/html/public/build
 
 # Cria o arquivo SQLite padrão caso não exista e configura o Laravel e o Apache
-RUN composer install --no-interaction --prefer-dist --no-progress --no-ansi --no-scripts --optimize-autoloader --no-dev \
-    && cp -n .env.example .env \
-    && mkdir -p database \
+RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-interaction --prefer-dist --no-progress --no-ansi --no-scripts --optimize-autoloader --no-dev \
+    && (cp -n .env.example .env || touch .env) \
+    && grep -q "^APP_KEY=" .env || echo "APP_KEY=" >> .env \
+    && mkdir -p database storage/framework/sessions storage/framework/views storage/framework/cache bootstrap/cache \
     && touch database/database.sqlite \
     && php artisan key:generate --force \
     && chown -R www-data:www-data /var/www/html \
