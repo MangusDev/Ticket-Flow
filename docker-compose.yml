@@ -22,7 +22,7 @@ services:
       - sqlite-data:/var/www/html/database
     working_dir: /var/www/html
     command: >
-      bash -lc "php artisan migrate --force && apache2-foreground"
+      bash -lc "touch /var/www/html/database/database.sqlite && chown -R www-data:www-data /var/www/html/database /var/www/html/storage /var/www/html/bootstrap/cache && php artisan migrate --force && apache2-foreground"
     restart: unless-stopped
 
   queue:
